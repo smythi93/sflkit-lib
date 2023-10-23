@@ -181,3 +181,10 @@ def add_loop_end_event(file: str, line: int, id_: int, loop_id: int):
 def add_use_event(file: str, line: int, id_: int, var: str, var_id: int):
     if var_id is not None:
         _event_path_file.write(codec.encode_use_event(file, line, id_, var, var_id))
+
+
+def add_len_event(file: str, line: int, id_: int, var: str, var_id: int, length: int):
+    if var_id is not None:
+        _event_path_file.write(
+            codec.encode_len_event(file, line, id_, var, var_id, length)
+        )
