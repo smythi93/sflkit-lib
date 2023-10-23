@@ -18,6 +18,7 @@ class EventType(enum.Enum):
     LOOP_BEGIN = 8
     LOOP_HIT = 9
     LOOP_END = 10
+    LEN = 11
 
 
 __all__ = ["event", "EventType"]

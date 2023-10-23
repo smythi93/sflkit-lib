@@ -1,14 +1,25 @@
+import io
 import sys
-from abc import abstractmethod
-from typing import Any, List
+from abc import abstractmethod, ABC
+from typing import Any, List, Union, Tuple, BinaryIO
 
 from sflkitlib.events import EventType
+from sflkitlib.events.codec import (
+    encode_event,
+    encode_def_event,
+    encode_branch_event,
+    encode_function_event,
+    encode_function_exit_event,
+    encode_condition_event,
+    encode_loop_event,
+    encode_use_event,
+    encode_len_event,
+    ENDIAN,
+)
 
 sys.path = sys.path[1:] + sys.path[:1]
-import csv
 import json
 import pickle
-import base64
 
 sys.path = sys.path[-1:] + sys.path[:-1]
 
@@ -17,24 +28,24 @@ class Event(object):
     def __init__(self, file: str, line: int, id_: int, event_type: EventType):
         self.file = file
         self.line = line
-        self.id_ = id_
+        self.event_id = id_
         self.event_type = event_type
 
     def __hash__(self):
-        return hash((self.file, self.line, self.id_, self.event_type.value))
+        return hash((self.file, self.line, self.event_id, self.event_type.value))
 
     def __eq__(self, other):
         if isinstance(other, Event):
             return (
                 self.file == other.file
                 and self.line == other.line
-                and self.id_ == other.id_
+                and self.event_id == other.event_id
                 and self.event_type == other.event_type
             )
         return False
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self.file},{self.line},{self.id_})"
+        return f"{self.__class__.__name__}({self.file},{self.line},{self.event_id})"
 
     @abstractmethod
     def handle(self, model: Any):
@@ -44,12 +55,16 @@ class Event(object):
         return {
             "file": self.file,
             "line": self.line,
-            "id": self.id_,
+            "id": self.event_id,
             "event_type": self.event_type.value,
         }
 
-    def dump(self) -> list:
-        return [self.event_type.value, self.file, self.line, self.id_]
+    @staticmethod
+    def get_byte_length(x: Union[int, float]):
+        return (x.bit_length() + 7) // 8
+
+    def dump(self) -> bytes:
+        return encode_event(self.event_type, self.file, self.line, self.event_id)
 
     @staticmethod
     def deserialize(s: dict):
@@ -88,7 +103,7 @@ class BranchEvent(Event):
         model.handle_branch_event(self)
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self.file},{self.line},{self.id_},{self.then_id},{self.else_id})"
+        return f"{self.__class__.__name__}({self.file},{self.line},{self.event_id},{self.then_id},{self.else_id})"
 
     def serialize(self):
         default = super().serialize()
@@ -97,7 +112,13 @@ class BranchEvent(Event):
         return default
 
     def dump(self):
-        return super().dump() + [self.then_id] + [self.else_id]
+        return encode_branch_event(
+            self.file,
+            self.line,
+            self.event_id,
+            self.then_id,
+            self.else_id,
+        )
 
     @staticmethod
     def deserialize(s: dict):
@@ -126,7 +147,10 @@ class DefEvent(Event):
         self.type_ = type_
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self.file},{self.line},{self.id_},{self.var},{self.var_id},{self.value})"
+        return (
+            f"{self.__class__.__name__}({self.file},{self.line},{self.event_id},"
+            f"{self.var},{self.var_id},{self.value})"
+        )
 
     def handle(self, model: Any):
         model.handle_def_event(self)
@@ -137,7 +161,15 @@ class DefEvent(Event):
         return default
 
     def dump(self):
-        return super().dump() + [self.var, self.var_id, self.value, self.type_]
+        return encode_def_event(
+            self.file,
+            self.line,
+            self.event_id,
+            self.var,
+            self.var_id,
+            self.value,
+            self.type_,
+        )
 
     @staticmethod
     def deserialize(s: dict):
@@ -146,17 +178,19 @@ class DefEvent(Event):
         return DefEvent(*[s[p] for p in ["file", "line", "id", "var"]])
 
 
-class FunctionEnterEvent(Event):
-    def __init__(self, file: str, line: int, id_: int, function_id: int, function: str):
-        super().__init__(file, line, id_, EventType.FUNCTION_ENTER)
-        self.function_id = function_id
+class FunctionEvent(Event, ABC):
+    def __init__(
+        self,
+        file: str,
+        line: int,
+        id_: int,
+        event_type: EventType,
+        function: str,
+        function_id: int,
+    ):
+        super().__init__(file, line, id_, event_type)
         self.function = function
-
-    def __repr__(self):
-        return f"{self.__class__.__name__}({self.file},{self.line},{self.id_},{self.function})"
-
-    def handle(self, model: Any):
-        model.handle_function_enter_event(self)
+        self.function_id = function_id
 
     def serialize(self):
         default = super().serialize()
@@ -165,7 +199,27 @@ class FunctionEnterEvent(Event):
         return default
 
     def dump(self):
-        return super().dump() + [self.function_id, self.function]
+        return encode_function_event(
+            self.event_type,
+            self.file,
+            self.line,
+            self.event_id,
+            self.function,
+            self.function_id,
+        )
+
+
+class FunctionEnterEvent(FunctionEvent):
+    def __init__(self, file: str, line: int, id_: int, function: str, function_id: int):
+        super().__init__(
+            file, line, id_, EventType.FUNCTION_ENTER, function, function_id
+        )
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.file},{self.line},{self.event_id},{self.function})"
+
+    def handle(self, model: Any):
+        model.handle_function_enter_event(self)
 
     @staticmethod
     def deserialize(s: dict):
@@ -176,47 +230,44 @@ class FunctionEnterEvent(Event):
         )
 
 
-class FunctionExitEvent(Event):
+class FunctionExitEvent(FunctionEvent):
     def __init__(
         self,
         file: str,
         line: int,
         id_: int,
-        function_id: int,
         function: str,
+        function_id: int,
         return_value: Any = None,
         type_: str = None,
         tmp_var: str = None,
     ):
-        super().__init__(file, line, id_, EventType.FUNCTION_EXIT)
-        self.function = function
-        self.function_id = function_id
+        super().__init__(
+            file, line, id_, EventType.FUNCTION_EXIT, function, function_id
+        )
         self.return_value = return_value
         self.type_ = type_
         self.tmp_var = tmp_var
 
     def __repr__(self):
         return (
-            f"{self.__class__.__name__}({self.file},{self.line},{self.id_},"
+            f"{self.__class__.__name__}({self.file},{self.line},{self.event_id},"
             f"{self.function},{self.return_value},{self.type_})"
         )
 
     def handle(self, model: Any):
         model.handle_function_exit_event(self)
 
-    def serialize(self):
-        default = super().serialize()
-        default["function_id"] = self.function_id
-        default["function"] = self.function
-        return default
-
     def dump(self):
-        return super().dump() + [
-            self.function_id,
+        return encode_function_exit_event(
+            self.file,
+            self.line,
+            self.event_id,
             self.function,
+            self.function_id,
             self.return_value,
             self.type_,
-        ]
+        )
 
     @staticmethod
     def deserialize(s: dict):
@@ -227,29 +278,20 @@ class FunctionExitEvent(Event):
         )
 
 
-class FunctionErrorEvent(Event):
-    def __init__(self, file: str, line: int, id_: int, function_id: int, function: str):
-        super().__init__(file, line, id_, EventType.FUNCTION_ERROR)
-        self.function_id = function_id
-        self.function = function
+class FunctionErrorEvent(FunctionEvent):
+    def __init__(self, file: str, line: int, id_: int, function: str, function_id: int):
+        super().__init__(
+            file, line, id_, EventType.FUNCTION_ERROR, function, function_id
+        )
 
     def __repr__(self):
         return (
-            f"{self.__class__.__name__}({self.file},{self.line},{self.id_},"
+            f"{self.__class__.__name__}({self.file},{self.line},{self.event_id},"
             f"{self.function_id},{self.function})"
         )
 
     def handle(self, model: Any):
         model.handle_function_error_event(self)
-
-    def serialize(self):
-        default = super().serialize()
-        default["function_id"] = self.function_id
-        default["function"] = self.function
-        return default
-
-    def dump(self):
-        return super().dump() + [self.function_id, self.function]
 
     @staticmethod
     def deserialize(s: dict):
@@ -276,7 +318,7 @@ class ConditionEvent(Event):
         self.tmp_var = tmp_var
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self.file},{self.line},{self.id_},{self.value},{self.condition})"
+        return f"{self.__class__.__name__}({self.file},{self.line},{self.event_id},{self.value},{self.condition})"
 
     def handle(self, model: Any):
         model.handle_condition_event(self)
@@ -287,7 +329,13 @@ class ConditionEvent(Event):
         return default
 
     def dump(self):
-        return super().dump() + [self.condition, 1 if self.value else 0]
+        return encode_condition_event(
+            self.file,
+            self.line,
+            self.event_id,
+            self.condition,
+            self.value,
+        )
 
     @staticmethod
     def deserialize(s: dict):
@@ -296,13 +344,12 @@ class ConditionEvent(Event):
         return ConditionEvent(*[s[p] for p in ["file", "line", "id", "condition"]])
 
 
-class LoopBeginEvent(Event):
-    def __init__(self, file: str, line: int, id_: int, loop_id: int):
-        super().__init__(file, line, id_, EventType.LOOP_BEGIN)
+class LoopEvent(Event, ABC):
+    def __init__(
+        self, file: str, line: int, id_: int, event_type: EventType, loop_id: int
+    ):
+        super().__init__(file, line, id_, event_type)
         self.loop_id = loop_id
-
-    def handle(self, model: Any):
-        model.handle_loop_begin_event(self)
 
     def serialize(self):
         default = super().serialize()
@@ -310,7 +357,21 @@ class LoopBeginEvent(Event):
         return default
 
     def dump(self):
-        return super().dump() + [self.loop_id]
+        return encode_loop_event(
+            self.event_type,
+            self.file,
+            self.line,
+            self.event_id,
+            self.loop_id,
+        )
+
+
+class LoopBeginEvent(LoopEvent):
+    def __init__(self, file: str, line: int, id_: int, loop_id: int):
+        super().__init__(file, line, id_, EventType.LOOP_BEGIN, loop_id)
+
+    def handle(self, model: Any):
+        model.handle_loop_begin_event(self)
 
     @staticmethod
     def deserialize(s: dict):
@@ -319,21 +380,12 @@ class LoopBeginEvent(Event):
         return LoopBeginEvent(*[s[p] for p in ["file", "line", "id", "loop_id"]])
 
 
-class LoopHitEvent(Event):
+class LoopHitEvent(LoopEvent):
     def __init__(self, file: str, line: int, id_: int, loop_id: int):
-        super().__init__(file, line, id_, EventType.LOOP_HIT)
-        self.loop_id = loop_id
+        super().__init__(file, line, id_, EventType.LOOP_HIT, loop_id)
 
     def handle(self, model: Any):
         model.handle_loop_hit_event(self)
-
-    def serialize(self):
-        default = super().serialize()
-        default["loop_id"] = self.loop_id
-        return default
-
-    def dump(self):
-        return super().dump() + [self.loop_id]
 
     @staticmethod
     def deserialize(s: dict):
@@ -342,21 +394,12 @@ class LoopHitEvent(Event):
         return LoopHitEvent(*[s[p] for p in ["file", "line", "id", "loop_id"]])
 
 
-class LoopEndEvent(Event):
+class LoopEndEvent(LoopEvent):
     def __init__(self, file: str, line: int, id_: int, loop_id: int):
-        super().__init__(file, line, id_, EventType.LOOP_END)
-        self.loop_id = loop_id
+        super().__init__(file, line, id_, EventType.LOOP_END, loop_id)
 
     def handle(self, model: Any):
         model.handle_loop_end_event(self)
-
-    def serialize(self):
-        default = super().serialize()
-        default["loop_id"] = self.loop_id
-        return default
-
-    def dump(self):
-        return super().dump() + [self.loop_id]
 
     @staticmethod
     def deserialize(s: dict):
@@ -372,7 +415,7 @@ class UseEvent(Event):
         self.var_id = var_id
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self.file},{self.line},{self.id_},{self.var},{self.var_id})"
+        return f"{self.__class__.__name__}({self.file},{self.line},{self.event_id},{self.var},{self.var_id})"
 
     def handle(self, model: Any):
         model.handle_use_event(self)
@@ -383,7 +426,55 @@ class UseEvent(Event):
         return default
 
     def dump(self):
-        return super().dump() + [self.var, self.var_id]
+        return encode_use_event(
+            self.file, self.line, self.event_id, self.var, self.var_id
+        )
+
+    @staticmethod
+    def deserialize(s: dict):
+        assert all(p in s for p in ["file", "line", "id", "var"])
+        assert s["event_type"] == EventType.USE.value
+        return UseEvent(*[s[p] for p in ["file", "line", "id", "var"]])
+
+
+class LenEvent(Event):
+    def __init__(
+        self,
+        file: str,
+        line: int,
+        id_: int,
+        var: str,
+        var_id: int = None,
+        length: int = None,
+    ):
+        super().__init__(file, line, id_, EventType.LEN)
+        self.var = var
+        self.var_id = var_id
+        self.length = length
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}({self.file},{self.line},{self.event_id},"
+            f"{self.var},{self.var_id},{self.length})"
+        )
+
+    def handle(self, model: Any):
+        model.handle_len_event(self)
+
+    def serialize(self):
+        default = super().serialize()
+        default["var"] = self.var
+        return default
+
+    def dump(self):
+        return encode_len_event(
+            self.file,
+            self.line,
+            self.event_id,
+            self.var,
+            self.var_id,
+            self.length,
+        )
 
     @staticmethod
     def deserialize(s: dict):
@@ -408,6 +499,7 @@ event_mapping = {
     EventType.LOOP_HIT: LoopHitEvent,
     EventType.LOOP_END: LoopEndEvent,
     EventType.CONDITION: ConditionEvent,
+    EventType.LEN: LenEvent,
 }
 
 
@@ -418,131 +510,173 @@ def deserialize(s: dict):
 
 
 def dump(path: str, events: List[Event]):
-    with open(path, "w") as fp:
-        writer = csv.writer(fp)
+    with open(path, "wb") as fp:
         for e in events:
-            writer.writerow(e.dump())
+            fp.write(e.dump())
 
 
-def load_event(event_type: EventType, *args):
+def read_int(stream: BinaryIO, n: int, signed: bool = False) -> int:
+    return int.from_bytes(stream.read(n), ENDIAN, signed=signed)
+
+
+def read_len_str(stream: BinaryIO, n: int) -> str:
+    length = read_int(stream, n)
+    return stream.read(length).decode("utf8")
+
+
+def read_len_bytes(stream: BinaryIO, n: int) -> bytes:
+    length = read_int(stream, n)
+    return stream.read(length)
+
+
+def read_len_int(stream: BinaryIO, n: int, signed: bool = False) -> int:
+    length = read_int(stream, n)
+    return read_int(stream, length, signed=signed)
+
+
+def load_next_event(stream: BinaryIO) -> Tuple[Event, bytes]:
+    event_type = EventType(read_int(stream, 1))
+    file = read_len_str(stream, 2)
+    line = read_len_int(stream, 1)
+    event_id = read_len_int(stream, 1)
     if event_type == EventType.BRANCH:
-        return BranchEvent(
-            args[0], int(args[1]), int(args[2]), int(args[3]), int(args[4])
-        )
+        then_id = read_len_int(stream, 1, signed=True)
+        else_id = read_len_int(stream, 1, signed=True)
+        return BranchEvent(file, line, event_id, then_id, else_id)
     elif event_type == EventType.DEF:
         # noinspection PyBroadException
+        var = read_len_str(stream, 2)
+        var_id = read_len_int(stream, 1)
+        value = read_len_bytes(stream, 4)
+        type_ = read_len_str(stream, 2)
         try:
             return DefEvent(
-                args[0],
-                int(args[1]),
-                int(args[2]),
-                args[3],
-                int(args[4]),
-                pickle.loads(base64.b64decode(args[5])),
-                args[6],
+                file,
+                line,
+                event_id,
+                var,
+                var_id,
+                pickle.loads(value),
+                type_,
             )
         except:
-            if args[5] == "True":
+            value = value.decode("utf8")
+            if value == "True":
                 return DefEvent(
-                    args[0],
-                    int(args[1]),
-                    int(args[2]),
-                    args[3],
-                    int(args[4]),
+                    file,
+                    line,
+                    event_id,
+                    var,
+                    var_id,
                     True,
-                    args[6],
+                    type_,
                 )
-            elif args[5] == "False":
+            elif value == "False":
                 return DefEvent(
-                    args[0],
-                    int(args[1]),
-                    int(args[2]),
-                    args[3],
-                    int(args[4]),
+                    file,
+                    line,
+                    event_id,
+                    var,
+                    var_id,
                     False,
-                    args[6],
+                    type_,
                 )
             else:
                 return DefEvent(
-                    args[0],
-                    int(args[1]),
-                    int(args[2]),
-                    args[3],
-                    int(args[4]),
+                    file,
+                    line,
+                    event_id,
+                    var,
+                    var_id,
                     None,
-                    args[6],
+                    type_,
                 )
     elif event_type == EventType.USE:
-        return UseEvent(args[0], int(args[1]), int(args[2]), args[3], int(args[4]))
-    elif event_type == EventType.FUNCTION_ENTER:
-        return FunctionEnterEvent(
-            args[0], int(args[1]), int(args[2]), int(args[3]), args[4]
-        )
-    elif event_type == EventType.FUNCTION_EXIT:
-        # noinspection PyBroadException
-        try:
-            return FunctionExitEvent(
-                args[0],
-                int(args[1]),
-                int(args[2]),
-                int(args[3]),
-                args[4],
-                pickle.loads(base64.b64decode(args[5])),
-                args[6],
-            )
-        except:
-            if args[5] == "True":
+        var = read_len_str(stream, 2)
+        var_id = read_len_int(stream, 1)
+        return UseEvent(file, line, event_id, var, var_id)
+    elif event_type in [
+        EventType.FUNCTION_ENTER,
+        EventType.FUNCTION_EXIT,
+        EventType.FUNCTION_ERROR,
+    ]:
+        function_id = read_len_int(stream, 1)
+        function = read_len_str(stream, 2)
+        if event_type == EventType.FUNCTION_ENTER:
+            return FunctionEnterEvent(file, line, event_id, function_id, function)
+        elif event_type == EventType.FUNCTION_ERROR:
+            return FunctionErrorEvent(file, line, event_id, function_id, function)
+        else:
+            # noinspection PyBroadException
+            value = read_len_bytes(stream, 4)
+            type_ = read_len_str(stream, 2)
+            try:
                 return FunctionExitEvent(
-                    args[0],
-                    int(args[1]),
-                    int(args[2]),
-                    int(args[3]),
-                    args[4],
-                    True,
-                    args[6],
+                    file,
+                    line,
+                    event_id,
+                    function_id,
+                    function,
+                    pickle.loads(value),
+                    type_,
                 )
-            elif args[5] == "False":
-                return FunctionExitEvent(
-                    args[0],
-                    int(args[1]),
-                    int(args[2]),
-                    int(args[3]),
-                    args[4],
-                    False,
-                    args[6],
-                )
-            else:
-                return FunctionExitEvent(
-                    args[0],
-                    int(args[1]),
-                    int(args[2]),
-                    int(args[3]),
-                    args[4],
-                    None,
-                    args[6],
-                )
-    elif event_type == EventType.FUNCTION_ERROR:
-        return FunctionErrorEvent(
-            args[0], int(args[1]), int(args[2]), int(args[3]), args[4]
-        )
+            except:
+                value = value.decode("utf8")
+                if value == "True":
+                    return FunctionExitEvent(
+                        file,
+                        line,
+                        event_id,
+                        function_id,
+                        function,
+                        True,
+                        type_,
+                    )
+                elif value == "False":
+                    return FunctionExitEvent(
+                        file,
+                        line,
+                        event_id,
+                        function_id,
+                        function,
+                        False,
+                        type_,
+                    )
+                else:
+                    return FunctionExitEvent(
+                        file,
+                        line,
+                        event_id,
+                        function_id,
+                        function,
+                        None,
+                        type_,
+                    )
     elif event_type == EventType.CONDITION:
-        return ConditionEvent(
-            args[0], int(args[1]), int(args[2]), args[3], bool(int(args[4]))
-        )
+        condition = read_len_str(stream, 4)
+        value = bool(read_int(stream, 1))
+        return ConditionEvent(file, line, event_id, condition, value)
     elif event_type in [EventType.LOOP_BEGIN, EventType.LOOP_HIT, event_type.LOOP_END]:
-        return event_mapping[event_type](
-            args[0], int(args[1]), int(args[2]), int(args[3])
-        )
+        loop_id = read_len_int(stream, 1)
+        return event_mapping[event_type](file, line, event_id, loop_id)
+    elif event_type == EventType.LEN:
+        var = read_len_int(stream, 2)
+        var_id = read_int(stream, 1)
+        length = read_len_int(stream, 1)
+        return LenEvent(file, line, event_id, var, var_id, length)
     else:
-        return event_mapping[event_type](args[0], int(args[1]), int(args[2]))
+        return event_mapping[event_type](file, line, event_id)
 
 
 def load(path) -> List[Event]:
     events = list()
-    with open(path, "r") as fp:
-        reader = csv.reader(fp)
-        for row in reader:
-            events.append(load_event(EventType(int(row[0])), *row[1:]))
+    with open(path, "rb") as fp:
+        fp: io.BufferedReader
+        while fp.peek(1):
+            try:
+                events.append(load_next_event(fp))
+            except:
+                break
     return events
 
 
