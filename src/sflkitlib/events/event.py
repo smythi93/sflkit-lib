@@ -671,8 +671,7 @@ def load_next_event(stream: BinaryIO) -> Tuple[Event, bytes]:
 def load(path) -> List[Event]:
     events = list()
     with open(path, "rb") as fp:
-        fp: io.BufferedReader
-        while fp.peek(1):
+        while True:
             try:
                 events.append(load_next_event(fp))
             except:
