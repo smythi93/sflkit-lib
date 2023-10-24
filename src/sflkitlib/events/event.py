@@ -660,7 +660,7 @@ def load_next_event(stream: BinaryIO) -> Tuple[Event, bytes]:
         loop_id = read_len_int(stream, 1)
         return event_mapping[event_type](file, line, event_id, loop_id)
     elif event_type == EventType.LEN:
-        var = read_len_int(stream, 2)
+        var = read_len_str(stream, 2)
         var_id = read_len_int(stream, 1)
         length = read_len_int(stream, 1)
         return LenEvent(file, line, event_id, var, var_id, length)
