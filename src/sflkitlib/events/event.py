@@ -480,7 +480,7 @@ class LenEvent(Event):
     def deserialize(s: dict):
         assert all(p in s for p in ["file", "line", "id", "var"])
         assert s["event_type"] == EventType.LEN.value
-        return UseEvent(*[s[p] for p in ["file", "line", "id", "var"]])
+        return LenEvent(*[s[p] for p in ["file", "line", "id", "var"]])
 
 
 def serialize(event: Event):
