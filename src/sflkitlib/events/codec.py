@@ -248,6 +248,6 @@ def encode_len_event(
             len_var_id.to_bytes(1, ENDIAN),
             var_id.to_bytes(len_var_id, ENDIAN),
             len_length.to_bytes(1, ENDIAN),
-            length.to_bytes(len_var_id, ENDIAN),
+            length.to_bytes(len_length, ENDIAN),
         ]
     )
