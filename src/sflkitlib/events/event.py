@@ -1,4 +1,3 @@
-import io
 import sys
 from abc import abstractmethod, ABC
 from typing import Any, List, Union, Tuple, BinaryIO
@@ -535,7 +534,10 @@ def read_len_int(stream: BinaryIO, n: int, signed: bool = False) -> int:
 
 
 def load_next_event(stream: BinaryIO) -> Tuple[Event, bytes]:
-    event_type = EventType(read_int(stream, 1))
+    test = stream.read(1)
+    if not test:
+        raise ValueError("empty stream")
+    event_type = EventType(int.from_bytes(test, ENDIAN))
     file = read_len_str(stream, 2)
     line = read_len_int(stream, 1)
     event_id = read_len_int(stream, 1)
