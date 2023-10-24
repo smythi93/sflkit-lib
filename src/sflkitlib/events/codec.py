@@ -92,10 +92,10 @@ def encode_function_event(
     len_function = len(function)
     return encode_event(event_type, file, line, event_id) + b"".join(
         [
-            len_function_id.to_bytes(1, ENDIAN),
-            function_id.to_bytes(len_function_id, ENDIAN),
             len_function.to_bytes(2, ENDIAN),
             function.encode("utf8"),
+            len_function_id.to_bytes(1, ENDIAN),
+            function_id.to_bytes(len_function_id, ENDIAN),
         ]
     )
 

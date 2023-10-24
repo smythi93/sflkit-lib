@@ -600,8 +600,8 @@ def load_next_event(stream: BinaryIO) -> Tuple[Event, bytes]:
         EventType.FUNCTION_EXIT,
         EventType.FUNCTION_ERROR,
     ]:
-        function_id = read_len_int(stream, 1)
         function = read_len_str(stream, 2)
+        function_id = read_len_int(stream, 1)
         if event_type == EventType.FUNCTION_ENTER:
             return FunctionEnterEvent(file, line, event_id, function_id, function)
         elif event_type == EventType.FUNCTION_ERROR:
@@ -661,7 +661,7 @@ def load_next_event(stream: BinaryIO) -> Tuple[Event, bytes]:
         return event_mapping[event_type](file, line, event_id, loop_id)
     elif event_type == EventType.LEN:
         var = read_len_int(stream, 2)
-        var_id = read_int(stream, 1)
+        var_id = read_len_int(stream, 1)
         length = read_len_int(stream, 1)
         return LenEvent(file, line, event_id, var, var_id, length)
     else:
