@@ -6,7 +6,7 @@ ENDIAN = "big"
 
 
 def get_byte_length(x: Union[int, float]):
-    return (x.bit_length() + 7) // 8
+    return max((x.bit_length() + 7) // 8, 1)
 
 
 def encode_event(event_type: EventType, file: str, line: int, event_id: int):
