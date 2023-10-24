@@ -99,8 +99,8 @@ def add_function_exit_event(
     file: str,
     line: int,
     id_: int,
-    function_id: int,
     function: str,
+    function_id: int,
     return_value: Any,
     type_: type,
 ):
