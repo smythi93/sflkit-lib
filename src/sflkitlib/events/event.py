@@ -1,3 +1,4 @@
+import io
 import sys
 from abc import abstractmethod, ABC
 from typing import Any, List, Union, Tuple, BinaryIO
@@ -478,7 +479,7 @@ class LenEvent(Event):
     @staticmethod
     def deserialize(s: dict):
         assert all(p in s for p in ["file", "line", "id", "var"])
-        assert s["event_type"] == EventType.USE.value
+        assert s["event_type"] == EventType.LEN.value
         return UseEvent(*[s[p] for p in ["file", "line", "id", "var"]])
 
 
@@ -533,7 +534,11 @@ def read_len_int(stream: BinaryIO, n: int, signed: bool = False) -> int:
     return read_int(stream, length, signed=signed)
 
 
-def load_next_event(stream: BinaryIO) -> Tuple[Event, bytes]:
+def load_event(e: bytes) -> Event:
+    return load_next_event(io.BytesIO(e))
+
+
+def load_next_event(stream: BinaryIO) -> Event:
     test = stream.read(1)
     if not test:
         raise ValueError("empty stream")
