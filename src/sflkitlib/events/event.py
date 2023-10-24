@@ -605,9 +605,9 @@ def load_next_event(stream: BinaryIO) -> Tuple[Event, bytes]:
         function = read_len_str(stream, 2)
         function_id = read_len_int(stream, 1)
         if event_type == EventType.FUNCTION_ENTER:
-            return FunctionEnterEvent(file, line, event_id, function_id, function)
+            return FunctionEnterEvent(file, line, event_id, function, function_id)
         elif event_type == EventType.FUNCTION_ERROR:
-            return FunctionErrorEvent(file, line, event_id, function_id, function)
+            return FunctionErrorEvent(file, line, event_id, function, function_id)
         else:
             # noinspection PyBroadException
             value = read_len_bytes(stream, 4)
@@ -617,8 +617,8 @@ def load_next_event(stream: BinaryIO) -> Tuple[Event, bytes]:
                     file,
                     line,
                     event_id,
-                    function_id,
                     function,
+                    function_id,
                     pickle.loads(value),
                     type_,
                 )
@@ -629,8 +629,8 @@ def load_next_event(stream: BinaryIO) -> Tuple[Event, bytes]:
                         file,
                         line,
                         event_id,
-                        function_id,
                         function,
+                        function_id,
                         True,
                         type_,
                     )
@@ -639,8 +639,8 @@ def load_next_event(stream: BinaryIO) -> Tuple[Event, bytes]:
                         file,
                         line,
                         event_id,
-                        function_id,
                         function,
+                        function_id,
                         False,
                         type_,
                     )
@@ -649,8 +649,8 @@ def load_next_event(stream: BinaryIO) -> Tuple[Event, bytes]:
                         file,
                         line,
                         event_id,
-                        function_id,
                         function,
+                        function_id,
                         None,
                         type_,
                     )

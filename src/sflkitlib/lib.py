@@ -88,10 +88,10 @@ def add_def_event(
 
 
 def add_function_enter_event(
-    file: str, line: int, id_: int, function_id: int, function: str
+    file: str, line: int, id_: int, function: str, function_id: int
 ):
     _event_path_file.write(
-        codec.encode_function_enter_event(file, line, id_, function_id, function)
+        codec.encode_function_enter_event(file, line, id_, function, function_id)
     )
 
 
@@ -113,8 +113,8 @@ def add_function_exit_event(
                 file,
                 line,
                 id_,
-                function_id,
                 function,
+                function_id,
                 pickle.dumps(return_value),
                 type_.__name__,
             )
@@ -127,8 +127,8 @@ def add_function_exit_event(
                     file,
                     line,
                     id_,
-                    function_id,
                     function,
+                    function_id,
                     pickle.dumps(bool(return_value)),
                     f"{type_.__module__}.{type_.__name__}",
                 )
@@ -139,8 +139,8 @@ def add_function_exit_event(
                     file,
                     line,
                     id_,
-                    function_id,
                     function,
+                    function_id,
                     pickle.dumps(None),
                     f"{type_.__module__}.{type_.__name__}",
                 )
@@ -148,10 +148,10 @@ def add_function_exit_event(
 
 
 def add_function_error_event(
-    file: str, line: int, id_: int, function_id: int, function: str
+    file: str, line: int, id_: int, function: str, function_id: int
 ):
     _event_path_file.write(
-        codec.encode_function_error_event(file, line, id_, function_id, function)
+        codec.encode_function_error_event(file, line, id_, function, function_id)
     )
 
 
