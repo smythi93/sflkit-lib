@@ -1,6 +1,6 @@
 # SFLKit: A Workbench for Statistical Fault Localization
 
-[![Python Version](https://img.shields.io/pypi/pyversions/sflkit)](https://pypi.org/project/sflkitlib/)
+[![Python Version](https://img.shields.io/pypi/pyversions/sflkitlib)](https://pypi.org/project/sflkitlib/)
 [![GitHub release](https://img.shields.io/github/v/release/smythi93/sflkit-lib)](https://img.shields.io/github/v/release/smythi93/sflkit-lib)
 [![PyPI](https://img.shields.io/pypi/v/sflkitlib)](https://pypi.org/project/sflkitlib/)
 [![Licence](https://img.shields.io/github/license/smythi93/sflkit-lib)](https://img.shields.io/github/license/smythi93/sflkit-lib)
