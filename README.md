@@ -1,9 +1,9 @@
 # SFLKit: A Workbench for Statistical Fault Localization
 
 [![Python Version](https://img.shields.io/pypi/pyversions/sflkit)](https://pypi.org/project/sflkitlib/)
-[![GitHub release](https://img.shields.io/github/v/release/smythi93/sflkitlib)](https://img.shields.io/github/v/release/smythi93/sflkitlib)
+[![GitHub release](https://img.shields.io/github/v/release/smythi93/sflkit-lib)](https://img.shields.io/github/v/release/smythi93/sflkit-lib)
 [![PyPI](https://img.shields.io/pypi/v/sflkitlib)](https://pypi.org/project/sflkitlib/)
-[![Licence](https://img.shields.io/github/license/uds-se/sflkit)](https://img.shields.io/github/license/uds-se/sflkit)
+[![Licence](https://img.shields.io/github/license/smythi93/sflkit-lib)](https://img.shields.io/github/license/smythi93/sflkit-lib)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 SFLKit (https://dl.acm.org/doi/10.1145/3540250.3558915) is an out-of-the-box library and tool for statistical fault 
