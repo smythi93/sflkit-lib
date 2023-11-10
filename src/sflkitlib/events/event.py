@@ -265,6 +265,11 @@ class FunctionExitEvent(FunctionEvent):
     def dump(self):
         return encode_function_exit_event(self.event_id, self.return_value, self.type_)
 
+    def serialize(self):
+        default = super().serialize()
+        default["tmp_var"] = self.tmp_var
+        return default
+
     @staticmethod
     def deserialize(s: dict):
         assert all(
@@ -350,6 +355,7 @@ class ConditionEvent(Event):
     def serialize(self):
         default = super().serialize()
         default["condition"] = self.condition
+        default["tmp_var"] = self.tmp_var
         return default
 
     def dump(self):
