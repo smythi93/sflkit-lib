@@ -201,8 +201,8 @@ class FunctionEvent(Event, ABC):
 
     def serialize(self):
         default = super().serialize()
-        default["function_id"] = self.function_id
         default["function"] = self.function
+        default["function_id"] = self.function_id
         return default
 
 
@@ -222,10 +222,10 @@ class FunctionEnterEvent(FunctionEvent):
 
     @staticmethod
     def deserialize(s: dict):
-        assert all(p in s for p in ["file", "line", "id", "function_id", "function"])
+        assert all(p in s for p in ["file", "line", "id", "function", "function_id"])
         assert s["event_type"] == EventType.FUNCTION_ENTER.value
         return FunctionEnterEvent(
-            *[s[p] for p in ["file", "line", "id", "function_id", "function"]]
+            *[s[p] for p in ["file", "line", "id", "function", "function_id"]]
         )
 
     def instantiate(self):
@@ -273,13 +273,13 @@ class FunctionExitEvent(FunctionEvent):
     @staticmethod
     def deserialize(s: dict):
         assert all(
-            p in s for p in ["file", "line", "id", "function_id", "function", "tmp_var"]
+            p in s for p in ["file", "line", "id", "function", "function_id", "tmp_var"]
         )
         assert s["event_type"] == EventType.FUNCTION_EXIT.value
         return FunctionExitEvent(
             *[
                 s[p]
-                for p in ["file", "line", "id", "function_id", "function", "tmp_var"]
+                for p in ["file", "line", "id", "function", "function_id", "tmp_var"]
             ]
         )
 
@@ -309,20 +309,17 @@ class FunctionErrorEvent(FunctionEvent):
         )
 
     def __repr__(self):
-        return (
-            f"{self.__class__.__name__}({self.file},{self.line},{self.event_id},"
-            f"{self.function_id},{self.function})"
-        )
+        return f"{self.__class__.__name__}({self.file},{self.line},{self.event_id},{self.function},{self.function_id})"
 
     def handle(self, model: Any):
         model.handle_function_error_event(self)
 
     @staticmethod
     def deserialize(s: dict):
-        assert all(p in s for p in ["file", "line", "id", "function_id", "function"])
+        assert all(p in s for p in ["file", "line", "id", "function", "function_id"])
         assert s["event_type"] == EventType.FUNCTION_ERROR.value
         return FunctionErrorEvent(
-            *[s[p] for p in ["file", "line", "id", "function_id", "function"]]
+            *[s[p] for p in ["file", "line", "id", "function", "function_id"]]
         )
 
     def instantiate(self):
