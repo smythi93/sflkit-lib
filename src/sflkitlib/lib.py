@@ -46,17 +46,15 @@ def dump_events():
 atexit.register(dump_events)
 
 
-def add_line_event(file: str, line: int, id_: int):
-    _event_path_file.write(codec.encode_line_event(file, line, id_))
+def add_line_event(event_id: int):
+    _event_path_file.write(codec.encode_event(event_id))
 
 
-def add_branch_event(file: str, line: int, id_: int, then_id: int, else_id: int):
-    _event_path_file.write(codec.encode_branch_event(file, line, id_, then_id, else_id))
+def add_branch_event(event_id: int):
+    _event_path_file.write(codec.encode_event(event_id))
 
 
-def add_def_event(
-    file: str, line: int, id_: int, var: str, var_id: int, value: Any, type_: type
-):
+def add_def_event(event_id: int, var_id: int, value: Any, type_: type):
     if var_id is not None:
         if (
             type_ in [int, float, complex, str, bytes, bytearray, memoryview, bool]
@@ -64,10 +62,7 @@ def add_def_event(
         ):
             _event_path_file.write(
                 codec.encode_def_event(
-                    file,
-                    line,
-                    id_,
-                    var,
+                    event_id,
                     var_id,
                     pickle.dumps(value),
                     type_.__name__,
@@ -76,10 +71,7 @@ def add_def_event(
         else:
             _event_path_file.write(
                 codec.encode_def_event(
-                    file,
-                    line,
-                    id_,
-                    var,
+                    event_id,
                     var_id,
                     pickle.dumps(None),
                     f"{type_.__module__}.{type_.__name__}",
@@ -87,20 +79,12 @@ def add_def_event(
             )
 
 
-def add_function_enter_event(
-    file: str, line: int, id_: int, function: str, function_id: int
-):
-    _event_path_file.write(
-        codec.encode_function_enter_event(file, line, id_, function, function_id)
-    )
+def add_function_enter_event(event_id: int):
+    _event_path_file.write(codec.encode_event(event_id))
 
 
 def add_function_exit_event(
-    file: str,
-    line: int,
-    id_: int,
-    function: str,
-    function_id: int,
+    event_id: int,
     return_value: Any,
     type_: type,
 ):
@@ -110,11 +94,7 @@ def add_function_exit_event(
     ):
         _event_path_file.write(
             codec.encode_function_exit_event(
-                file,
-                line,
-                id_,
-                function,
-                function_id,
+                event_id,
                 pickle.dumps(return_value),
                 type_.__name__,
             )
@@ -124,11 +104,7 @@ def add_function_exit_event(
         try:
             _event_path_file.write(
                 codec.encode_function_exit_event(
-                    file,
-                    line,
-                    id_,
-                    function,
-                    function_id,
+                    event_id,
                     pickle.dumps(bool(return_value)),
                     f"{type_.__module__}.{type_.__name__}",
                 )
@@ -136,55 +112,41 @@ def add_function_exit_event(
         except:
             _event_path_file.write(
                 codec.encode_function_exit_event(
-                    file,
-                    line,
-                    id_,
-                    function,
-                    function_id,
+                    event_id,
                     pickle.dumps(None),
                     f"{type_.__module__}.{type_.__name__}",
                 )
             )
 
 
-def add_function_error_event(
-    file: str, line: int, id_: int, function: str, function_id: int
-):
-    _event_path_file.write(
-        codec.encode_function_error_event(file, line, id_, function, function_id)
-    )
+def add_function_error_event(event_id: int):
+    _event_path_file.write(codec.encode_event(event_id))
 
 
-def add_condition_event(file: str, line: int, id_: int, condition: str, value: Any):
+def add_condition_event(event_id: int, value: Any):
     if value:
-        _event_path_file.write(
-            codec.encode_condition_event(file, line, id_, condition, True)
-        )
+        _event_path_file.write(codec.encode_condition_event(event_id, True))
     else:
-        _event_path_file.write(
-            codec.encode_condition_event(file, line, id_, condition, False)
-        )
+        _event_path_file.write(codec.encode_condition_event(event_id, False))
 
 
-def add_loop_begin_event(file: str, line: int, id_: int, loop_id: int):
-    _event_path_file.write(codec.encode_loop_begin_event(file, line, id_, loop_id))
+def add_loop_begin_event(event_id: int):
+    _event_path_file.write(codec.encode_event(event_id))
 
 
-def add_loop_hit_event(file: str, line: int, id_: int, loop_id: int):
-    _event_path_file.write(codec.encode_loop_hit_event(file, line, id_, loop_id))
+def add_loop_hit_event(event_id: int):
+    _event_path_file.write(codec.encode_event(event_id))
 
 
-def add_loop_end_event(file: str, line: int, id_: int, loop_id: int):
-    _event_path_file.write(codec.encode_loop_end_event(file, line, id_, loop_id))
+def add_loop_end_event(event_id: int):
+    _event_path_file.write(codec.encode_event(event_id))
 
 
-def add_use_event(file: str, line: int, id_: int, var: str, var_id: int):
+def add_use_event(event_id: int, var_id: int):
     if var_id is not None:
-        _event_path_file.write(codec.encode_use_event(file, line, id_, var, var_id))
+        _event_path_file.write(codec.encode_use_event(event_id, var_id))
 
 
-def add_len_event(file: str, line: int, id_: int, var: str, var_id: int, length: int):
+def add_len_event(event_id: int, var_id: int, length: int):
     if var_id is not None:
-        _event_path_file.write(
-            codec.encode_len_event(file, line, id_, var, var_id, length)
-        )
+        _event_path_file.write(codec.encode_len_event(event_id, var_id, length))
