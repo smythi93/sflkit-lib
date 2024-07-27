@@ -39,28 +39,38 @@ def get_type(x: Any):
 
 
 def dump_events():
-    _event_path_file.flush()
-    _event_path_file.close()
+    try:
+        _event_path_file.flush()
+        _event_path_file.close()
+    except:
+        pass
+
+
+def write(encoded_event: bytes):
+    global _event_path_file
+    try:
+        _event_path_file.write(encoded_event)
+    except ValueError:
+        _event_path_file = open(os.getenv("EVENTS_PATH", default="EVENTS_PATH"), "ab")
+        _event_path_file.write(encoded_event)
+        atexit.register(dump_events)
 
 
 atexit.register(dump_events)
 
 
 def add_line_event(event_id: int):
-    _event_path_file.write(codec.encode_event(event_id))
+    write(codec.encode_event(event_id))
 
 
 def add_branch_event(event_id: int):
-    _event_path_file.write(codec.encode_event(event_id))
+    write(codec.encode_event(event_id))
 
 
 def add_def_event(event_id: int, var_id: int, value: Any, type_: type):
     if var_id is not None:
-        if (
-            type_ in [int, float, complex, str, bytes, bytearray, memoryview, bool]
-            or value is None
-        ):
-            _event_path_file.write(
+        if type_ in [int, float, complex, str, bytes, bytearray, bool] or value is None:
+            write(
                 codec.encode_def_event(
                     event_id,
                     var_id,
@@ -69,7 +79,7 @@ def add_def_event(event_id: int, var_id: int, value: Any, type_: type):
                 )
             )
         else:
-            _event_path_file.write(
+            write(
                 codec.encode_def_event(
                     event_id,
                     var_id,
@@ -80,7 +90,7 @@ def add_def_event(event_id: int, var_id: int, value: Any, type_: type):
 
 
 def add_function_enter_event(event_id: int):
-    _event_path_file.write(codec.encode_event(event_id))
+    write(codec.encode_event(event_id))
 
 
 def add_function_exit_event(
@@ -89,10 +99,10 @@ def add_function_exit_event(
     type_: type,
 ):
     if (
-        type_ in [int, float, complex, str, bytes, bytearray, memoryview, bool]
+        type_ in [int, float, complex, str, bytes, bytearray, bool]
         or return_value is None
     ):
-        _event_path_file.write(
+        write(
             codec.encode_function_exit_event(
                 event_id,
                 pickle.dumps(return_value),
@@ -102,7 +112,7 @@ def add_function_exit_event(
     else:
         # noinspection PyBroadException
         try:
-            _event_path_file.write(
+            write(
                 codec.encode_function_exit_event(
                     event_id,
                     pickle.dumps(bool(return_value)),
@@ -110,7 +120,7 @@ def add_function_exit_event(
                 )
             )
         except:
-            _event_path_file.write(
+            write(
                 codec.encode_function_exit_event(
                     event_id,
                     pickle.dumps(None),
@@ -120,33 +130,33 @@ def add_function_exit_event(
 
 
 def add_function_error_event(event_id: int):
-    _event_path_file.write(codec.encode_event(event_id))
+    write(codec.encode_event(event_id))
 
 
 def add_condition_event(event_id: int, value: Any):
     if value:
-        _event_path_file.write(codec.encode_condition_event(event_id, True))
+        write(codec.encode_condition_event(event_id, True))
     else:
-        _event_path_file.write(codec.encode_condition_event(event_id, False))
+        write(codec.encode_condition_event(event_id, False))
 
 
 def add_loop_begin_event(event_id: int):
-    _event_path_file.write(codec.encode_event(event_id))
+    write(codec.encode_event(event_id))
 
 
 def add_loop_hit_event(event_id: int):
-    _event_path_file.write(codec.encode_event(event_id))
+    write(codec.encode_event(event_id))
 
 
 def add_loop_end_event(event_id: int):
-    _event_path_file.write(codec.encode_event(event_id))
+    write(codec.encode_event(event_id))
 
 
 def add_use_event(event_id: int, var_id: int):
     if var_id is not None:
-        _event_path_file.write(codec.encode_use_event(event_id, var_id))
+        write(codec.encode_use_event(event_id, var_id))
 
 
 def add_len_event(event_id: int, var_id: int, length: int):
     if var_id is not None:
-        _event_path_file.write(codec.encode_len_event(event_id, var_id, length))
+        write(codec.encode_len_event(event_id, var_id, length))
