@@ -51,9 +51,7 @@ def write(encoded_event: bytes):
     try:
         _event_path_file.write(encoded_event)
     except ValueError:
-        _event_path_file = open(os.getenv("EVENTS_PATH", default="EVENTS_PATH"), "ab")
-        _event_path_file.write(encoded_event)
-        atexit.register(dump_events)
+        pass
 
 
 atexit.register(dump_events)
