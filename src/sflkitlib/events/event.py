@@ -12,6 +12,7 @@ from sflkitlib.events.codec import (
     encode_use_event,
     encode_len_event,
     ENDIAN,
+    encode_base_def_event,
 )
 
 sys.path = sys.path[1:] + sys.path[:1]
@@ -525,6 +526,185 @@ class LenEvent(Event):
         return LenEvent(self.file, self.line, self.event_id, self.var, var_id, length)
 
 
+class TestFunctionEvent(Event, ABC):
+    def __init__(
+        self,
+        file: str,
+        line: int,
+        event_id: int,
+        event_type: EventType,
+        test: str,
+        test_id: int,
+    ):
+        super().__init__(file, line, event_id, event_type)
+        self.test = test
+        self.test_id = test_id
+
+    def serialize(self):
+        default = super().serialize()
+        default["test"] = self.test
+        default["test_id"] = self.test_id
+        return default
+
+
+class TestStartEvent(TestFunctionEvent):
+    def __init__(self, file: str, line: int, event_id: int, test: str, test_id: int):
+        super().__init__(file, line, event_id, EventType.TEST_START, test, test_id)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.file},{self.line},{self.event_id},{self.test})"
+
+    def handle(self, model: Any):
+        model.handle_test_start_event(self)
+
+    @staticmethod
+    def deserialize(s: dict):
+        assert all(p in s for p in ["file", "line", "id", "test", "test_id"])
+        assert s["event_type"] == EventType.TEST_START.value
+        return TestStartEvent(
+            *[s[p] for p in ["file", "line", "id", "test", "test_id"]]
+        )
+
+    def instantiate(self):
+        return TestStartEvent(
+            self.file, self.line, self.event_id, self.test, self.test_id
+        )
+
+
+class TestEndEvent(TestFunctionEvent):
+    def __init__(self, file: str, line: int, event_id: int, test: str, test_id: int):
+        super().__init__(file, line, event_id, EventType.TEST_END, test, test_id)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.file},{self.line},{self.event_id},{self.test})"
+
+    def handle(self, model: Any):
+        model.handle_test_end_event(self)
+
+    @staticmethod
+    def deserialize(s: dict):
+        assert all(p in s for p in ["file", "line", "id", "test", "test_id"])
+        assert s["event_type"] == EventType.TEST_END.value
+        return TestEndEvent(*[s[p] for p in ["file", "line", "id", "test", "test_id"]])
+
+    def instantiate(self):
+        return TestEndEvent(
+            self.file, self.line, self.event_id, self.test, self.test_id
+        )
+
+
+class TestLineEvent(Event):
+    def __init__(self, file: str, line: int, event_id: int):
+        super().__init__(file, line, event_id, EventType.TEST_LINE)
+
+    def handle(self, model: Any):
+        model.handle_test_line_event(self)
+
+    @staticmethod
+    def deserialize(s: dict):
+        assert all(p in s for p in ["file", "line", "id"])
+        assert s["event_type"] == EventType.TEST_LINE.value
+        return TestLineEvent(*[s[p] for p in ["file", "line", "id"]])
+
+    def instantiate(self):
+        return TestLineEvent(self.file, self.line, self.event_id)
+
+
+class TestDefEvent(Event):
+    def __init__(
+        self,
+        file,
+        line: int,
+        event_id: int,
+        var: str,
+        var_id: int = None,
+    ):
+        super().__init__(file, line, event_id, EventType.TEST_DEF)
+        self.var = var
+        self.var_id = var_id
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}({self.file},{self.line},{self.event_id},"
+            f"{self.var},{self.var_id})"
+        )
+
+    def handle(self, model: Any):
+        model.handle_test_def_event(self)
+
+    def serialize(self):
+        default = super().serialize()
+        default["var"] = self.var
+        return default
+
+    def dump(self):
+        return encode_base_def_event(
+            self.event_id,
+            self.var_id,
+        )
+
+    @staticmethod
+    def deserialize(s: dict):
+        assert all(p in s for p in ["file", "line", "id", "var"])
+        assert s["event_type"] == EventType.TEST_DEF.value
+        return TestDefEvent(*[s[p] for p in ["file", "line", "id", "var"]])
+
+    def instantiate(
+        self,
+        var_id: int,
+    ):
+        return TestDefEvent(self.file, self.line, self.event_id, self.var, var_id)
+
+
+class TestUseEvent(Event):
+    def __init__(
+        self, file: str, line: int, event_id: int, var: str, var_id: int = None
+    ):
+        super().__init__(file, line, event_id, EventType.TEST_USE)
+        self.var = var
+        self.var_id = var_id
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.file},{self.line},{self.event_id},{self.var},{self.var_id})"
+
+    def handle(self, model: Any):
+        model.handle_test_use_event(self)
+
+    def serialize(self):
+        default = super().serialize()
+        default["var"] = self.var
+        return default
+
+    def dump(self):
+        return encode_use_event(self.event_id, self.var_id)
+
+    @staticmethod
+    def deserialize(s: dict):
+        assert all(p in s for p in ["file", "line", "id", "var"])
+        assert s["event_type"] == EventType.TEST_USE.value
+        return TestUseEvent(*[s[p] for p in ["file", "line", "id", "var"]])
+
+    def instantiate(self, var_id):
+        return TestUseEvent(self.file, self.line, self.event_id, self.var, var_id)
+
+
+class TestAssertEvent(Event):
+    def __init__(self, file: str, line: int, event_id: int):
+        super().__init__(file, line, event_id, EventType.TEST_ASSERT)
+
+    def handle(self, model: Any):
+        model.handle_test_assert_event(self)
+
+    @staticmethod
+    def deserialize(s: dict):
+        assert all(p in s for p in ["file", "line", "id"])
+        assert s["event_type"] == EventType.TEST_ASSERT.value
+        return TestAssertEvent(*[s[p] for p in ["file", "line", "id"]])
+
+    def instantiate(self):
+        return TestAssertEvent(self.file, self.line, self.event_id)
+
+
 def serialize(event: Event):
     return event.serialize()
 
@@ -542,6 +722,12 @@ event_mapping = {
     EventType.LOOP_END: LoopEndEvent,
     EventType.CONDITION: ConditionEvent,
     EventType.LEN: LenEvent,
+    EventType.TEST_START: TestStartEvent,
+    EventType.TEST_END: TestEndEvent,
+    EventType.TEST_LINE: TestLineEvent,
+    EventType.TEST_DEF: TestDefEvent,
+    EventType.TEST_USE: TestUseEvent,
+    EventType.TEST_ASSERT: TestAssertEvent,
 }
 
 
@@ -652,6 +838,12 @@ def load_next_event(stream: BinaryIO, events: Dict[int, Event]) -> Event:
         var_id = read_len_int(stream, 1)
         length = read_len_int(stream, 1)
         return event.instantiate(var_id, length)
+    elif event.event_type == EventType.TEST_DEF:
+        var_id = read_len_int(stream, 1)
+        return event.instantiate(var_id)
+    elif event.event_type == EventType.TEST_USE:
+        var_id = read_len_int(stream, 1)
+        return event.instantiate(var_id)
     else:
         return event.instantiate()
 

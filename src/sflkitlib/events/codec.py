@@ -17,23 +17,33 @@ def encode_event(event_id: int):
     )
 
 
+def encode_base_def_event(
+    event_id: int,
+    var_id: int,
+):
+    len_var_id = get_byte_length(var_id)
+    return encode_event(event_id) + b"".join(
+        [
+            len_var_id.to_bytes(1, ENDIAN),
+            var_id.to_bytes(len_var_id, ENDIAN),
+        ]
+    )
+
+
 def encode_def_event(
     event_id: int,
     var_id: int,
     value: Any,
     type_: str,
 ):
-    len_var_id = get_byte_length(var_id)
     if isinstance(value, bytes):
         value = value
     else:
         value = str(value).encode("utf8")
     len_value = len(value)
     len_type = len(type_)
-    return encode_event(event_id) + b"".join(
+    return encode_base_def_event(event_id, var_id) + b"".join(
         [
-            len_var_id.to_bytes(1, ENDIAN),
-            var_id.to_bytes(len_var_id, ENDIAN),
             len_value.to_bytes(4, ENDIAN),
             value,
             len_type.to_bytes(2, ENDIAN),

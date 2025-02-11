@@ -1,19 +1,19 @@
 [build-system]
 requires = [
-    "setuptools>=59.6.0",
+    "setuptools>=75.8.0",
     "wheel"
 ]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "sflkitlib"
-version = "0.0.5"
+version = "0.0.6"
 authors = [
     { name = "Marius Smytzek", email = "marius.smytzek@cispa.de" },
 ]
 description = "Lib for SFLKit: : A Workbench for Statistical Fault Localization"
 readme = "README.md"
-license = { file = "COPYING" }
+license = { file = "LICENSE" }
 requires-python = ">=3.6"
 classifiers = [
     "Intended Audience :: Science/Research",

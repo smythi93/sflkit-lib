@@ -158,3 +158,29 @@ def add_use_event(event_id: int, var_id: int):
 def add_len_event(event_id: int, var_id: int, length: int):
     if var_id is not None:
         write(codec.encode_len_event(event_id, var_id, length))
+
+
+def add_test_start_event(event_id: int):
+    write(codec.encode_event(event_id))
+
+
+def add_test_end_event(event_id: int):
+    write(codec.encode_event(event_id))
+
+
+def add_test_line_event(event_id: int):
+    write(codec.encode_event(event_id))
+
+
+def add_test_def_event(event_id: int, var_id: int):
+    if var_id is not None:
+        write(codec.encode_base_def_event(event_id, var_id))
+
+
+def add_test_use_event(event_id: int, var_id: int):
+    if var_id is not None:
+        write(codec.encode_use_event(event_id, var_id))
+
+
+def add_test_assert_event(event_id: int):
+    write(codec.encode_event(event_id))

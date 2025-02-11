@@ -1,4 +1,5 @@
 import sys
+from typing import Set
 
 sys.path = sys.path[1:] + sys.path[:1]
 import enum
@@ -19,6 +20,24 @@ class EventType(enum.Enum):
     LOOP_HIT = 9
     LOOP_END = 10
     LEN = 11
+    TEST_START = 12
+    TEST_END = 13
+    TEST_LINE = 14
+    TEST_DEF = 15
+    TEST_USE = 16
+    TEST_ASSERT = 17
+
+    @property
+    def is_test(self):
+        return self in self.test_events()
+
+    @staticmethod
+    def test_events() -> Set["EventType"]:
+        return {EventType.TEST_LINE, EventType.TEST_DEF, EventType.TEST_USE}
+
+    @staticmethod
+    def events() -> Set["EventType"]:
+        return set(EventType) - EventType.test_events()
 
 
 __all__ = ["event", "EventType"]
