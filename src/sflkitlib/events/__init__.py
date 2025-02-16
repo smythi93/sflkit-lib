@@ -1,5 +1,5 @@
 import sys
-from typing import Set
+from typing import Set, List
 
 sys.path = sys.path[1:] + sys.path[:1]
 import enum
@@ -27,42 +27,45 @@ class EventType(enum.Enum):
     TEST_USE = 16
     TEST_ASSERT = 17
 
+    @classmethod
+    def _events(cls) -> List["EventType"]:
+        return [
+            cls.LINE,
+            cls.BRANCH,
+            cls.FUNCTION_ENTER,
+            cls.FUNCTION_EXIT,
+            cls.FUNCTION_ERROR,
+            cls.DEF,
+            cls.USE,
+            cls.CONDITION,
+            cls.LOOP_BEGIN,
+            cls.LOOP_HIT,
+            cls.LOOP_END,
+            cls.LEN,
+        ]
+
+    @classmethod
+    def _test_events(cls) -> List["EventType"]:
+        return [
+            cls.TEST_START,
+            cls.TEST_END,
+            cls.TEST_LINE,
+            cls.TEST_DEF,
+            cls.TEST_USE,
+            cls.TEST_ASSERT,
+        ]
+
     @property
     def is_test(self):
-        return self in self.test_events()
+        return self in self._test_events()
 
     @staticmethod
     def test_events() -> Set["EventType"]:
-        return {
-            EventType.TEST_START,
-            EventType.TEST_END,
-            EventType.TEST_LINE,
-            EventType.TEST_DEF,
-            EventType.TEST_USE,
-            EventType.TEST_ASSERT,
-        }
+        return set(EventType._test_events())
 
     @staticmethod
     def events() -> Set["EventType"]:
-        return set(EventType)
-
-    def __iter__(self):
-        return iter(
-            [
-                EventType.LINE,
-                EventType.BRANCH,
-                EventType.FUNCTION_ENTER,
-                EventType.FUNCTION_EXIT,
-                EventType.FUNCTION_ERROR,
-                EventType.DEF,
-                EventType.USE,
-                EventType.CONDITION,
-                EventType.LOOP_BEGIN,
-                EventType.LOOP_HIT,
-                EventType.LOOP_END,
-                EventType.LEN,
-            ]
-        )
+        return set(EventType._events())
 
 
 __all__ = ["event", "EventType"]
