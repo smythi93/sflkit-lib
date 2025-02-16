@@ -28,7 +28,7 @@ class EventType(enum.Enum):
     TEST_ASSERT = 17
 
     @classmethod
-    def _events(cls) -> List["EventType"]:
+    def events(cls) -> List["EventType"]:
         return [
             cls.LINE,
             cls.BRANCH,
@@ -45,7 +45,7 @@ class EventType(enum.Enum):
         ]
 
     @classmethod
-    def _test_events(cls) -> List["EventType"]:
+    def test_events(cls) -> List["EventType"]:
         return [
             cls.TEST_START,
             cls.TEST_END,
@@ -57,15 +57,7 @@ class EventType(enum.Enum):
 
     @property
     def is_test(self):
-        return self in self._test_events()
-
-    @staticmethod
-    def test_events() -> Set["EventType"]:
-        return set(EventType._test_events())
-
-    @staticmethod
-    def events() -> Set["EventType"]:
-        return set(EventType._events())
+        return self in self.test_events()
 
 
 __all__ = ["event", "EventType"]
