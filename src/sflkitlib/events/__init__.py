@@ -33,11 +33,36 @@ class EventType(enum.Enum):
 
     @staticmethod
     def test_events() -> Set["EventType"]:
-        return {EventType.TEST_LINE, EventType.TEST_DEF, EventType.TEST_USE}
+        return {
+            EventType.TEST_START,
+            EventType.TEST_END,
+            EventType.TEST_LINE,
+            EventType.TEST_DEF,
+            EventType.TEST_USE,
+            EventType.TEST_ASSERT,
+        }
 
     @staticmethod
     def events() -> Set["EventType"]:
-        return set(EventType) - EventType.test_events()
+        return set(EventType)
+
+    def __iter__(self):
+        return iter(
+            [
+                EventType.LINE,
+                EventType.BRANCH,
+                EventType.FUNCTION_ENTER,
+                EventType.FUNCTION_EXIT,
+                EventType.FUNCTION_ERROR,
+                EventType.DEF,
+                EventType.USE,
+                EventType.CONDITION,
+                EventType.LOOP_BEGIN,
+                EventType.LOOP_HIT,
+                EventType.LOOP_END,
+                EventType.LEN,
+            ]
+        )
 
 
 __all__ = ["event", "EventType"]
