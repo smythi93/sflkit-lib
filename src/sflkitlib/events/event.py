@@ -441,11 +441,11 @@ class ConditionEvent(Event):
         default["tmp_var"] = self.tmp_var
         return default
 
-    def dump(self, thread_id: Optional[int] = None):
+    def dump(self):
         return encode_condition_event(
             self.event_id,
             self.value,
-            thread_id,
+            self.thread_id,
         )
 
     @staticmethod
@@ -952,7 +952,7 @@ def load_next_event(
     # Read thread_id if present
     thread_id = None
     if with_thread_id:
-        thread_id = read_len_int(stream, int.from_bytes(test, ENDIAN))
+        thread_id = read_int(stream, int.from_bytes(test, ENDIAN))
         test = stream.read(1)
         if not test:
             raise ValueError("unexpected end of stream")
