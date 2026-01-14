@@ -14,9 +14,17 @@ ID = 0
 
 
 class CodecTest(unittest.TestCase):
-    def _assert(self, e: event.Event, dump: bytes, mapping: Dict[int, Event]):
+    def _assert(
+        self,
+        e: event.Event,
+        dump: bytes,
+        mapping: Dict[int, Event],
+        with_thread_id: bool = False,
+    ):
         self.assertEqual(e.dump(), dump)
-        self.assertEqual(e, event.load_next_event(io.BytesIO(dump), mapping))
+        self.assertEqual(
+            e, event.load_next_event(io.BytesIO(dump), mapping, with_thread_id)
+        )
 
     def test_line(self):
         e = event.LineEvent(FILE, LINE, ID)
@@ -95,3 +103,78 @@ class CodecTest(unittest.TestCase):
             self.assertEqual(e_3, events[2])
         finally:
             os.remove(path)
+
+    # Threading tests
+    def test_line_with_thread(self):
+        thread_id = 12345
+        e = event.LineEvent(FILE, LINE, ID, thread_id)
+        dump = codec.encode_event(ID, thread_id)
+        self._assert(e, dump, {ID: e}, with_thread_id=True)
+
+    def test_branch_with_thread(self):
+        thread_id = 12345
+        e = event.BranchEvent(FILE, LINE, ID, 0, -1, thread_id)
+        dump = codec.encode_event(ID, thread_id)
+        self._assert(e, dump, {ID: e}, with_thread_id=True)
+
+    def test_def_with_thread(self):
+        thread_id = 12345
+        e = event.DefEvent(FILE, LINE, ID, "x", 1, 1, "int", thread_id)
+        dump = codec.encode_def_event(ID, 1, 1, "int", thread_id)
+        self._assert(e, dump, {ID: e}, with_thread_id=True)
+
+    def test_function_enter_with_thread(self):
+        thread_id = 12345
+        e = event.FunctionEnterEvent(FILE, LINE, ID, "main", 1, thread_id)
+        dump = codec.encode_event(ID, thread_id)
+        self._assert(e, dump, {ID: e}, with_thread_id=True)
+
+    def test_function_exit_with_thread(self):
+        thread_id = 12345
+        e = event.FunctionExitEvent(
+            FILE, LINE, ID, "main", 1, "tmp", 1, "int", thread_id
+        )
+        dump = codec.encode_function_exit_event(ID, 1, "int", thread_id)
+        self._assert(e, dump, {ID: e}, with_thread_id=True)
+
+    def test_function_error_with_thread(self):
+        thread_id = 12345
+        e = event.FunctionErrorEvent(FILE, LINE, ID, "main", 1, thread_id)
+        dump = codec.encode_event(ID, thread_id)
+        self._assert(e, dump, {ID: e}, with_thread_id=True)
+
+    def test_condition_with_thread(self):
+        thread_id = 12345
+        e = event.ConditionEvent(FILE, LINE, ID, "x < y", "tmp", False, thread_id)
+        dump = codec.encode_condition_event(ID, False, thread_id)
+        self._assert(e, dump, {ID: e}, with_thread_id=True)
+
+    def test_loop_begin_with_thread(self):
+        thread_id = 12345
+        e = event.LoopBeginEvent(FILE, LINE, ID, 1, thread_id)
+        dump = codec.encode_event(ID, thread_id)
+        self._assert(e, dump, {ID: e}, with_thread_id=True)
+
+    def test_loop_hit_with_thread(self):
+        thread_id = 12345
+        e = event.LoopHitEvent(FILE, LINE, ID, 1, thread_id)
+        dump = codec.encode_event(ID, thread_id)
+        self._assert(e, dump, {ID: e}, with_thread_id=True)
+
+    def test_loop_end_with_thread(self):
+        thread_id = 12345
+        e = event.LoopEndEvent(FILE, LINE, ID, 1, thread_id)
+        dump = codec.encode_event(ID, thread_id)
+        self._assert(e, dump, {ID: e}, with_thread_id=True)
+
+    def test_use_with_thread(self):
+        thread_id = 12345
+        e = event.UseEvent(FILE, LINE, ID, "x", 1, thread_id)
+        dump = codec.encode_use_event(ID, 1, thread_id)
+        self._assert(e, dump, {ID: e}, with_thread_id=True)
+
+    def test_len_with_thread(self):
+        thread_id = 12345
+        e = event.LenEvent(FILE, LINE, ID, "x", 1, 5, thread_id)
+        dump = codec.encode_len_event(ID, 1, 5, thread_id)
+        self._assert(e, dump, {ID: e}, with_thread_id=True)

@@ -1,7 +1,7 @@
 import io
 import sys
 from abc import abstractmethod, ABC
-from typing import Any, List, Union, BinaryIO, Dict
+from typing import Any, List, Union, BinaryIO, Dict, Optional
 
 from sflkitlib.events import EventType
 from sflkitlib.events.codec import (
@@ -23,10 +23,18 @@ sys.path = sys.path[-1:] + sys.path[:-1]
 
 
 class Event(ABC):
-    def __init__(self, file: str, line: int, event_id: int, event_type: EventType):
+    def __init__(
+        self,
+        file: str,
+        line: int,
+        event_id: int,
+        event_type: EventType,
+        thread_id: Optional[int] = None,
+    ):
         self.file = file
         self.line = line
         self.event_id = event_id
+        self.thread_id = thread_id
         self.event_type = event_type
 
     def __hash__(self):
@@ -50,6 +58,14 @@ class Event(ABC):
         raise NotImplementedError()
 
     def serialize(self):
+        if self.thread_id is not None:
+            return {
+                "file": self.file,
+                "line": self.line,
+                "id": self.event_id,
+                "event_type": self.event_type.value,
+                "thread_id": self.thread_id,
+            }
         return {
             "file": self.file,
             "line": self.line,
@@ -62,7 +78,7 @@ class Event(ABC):
         return (x.bit_length() + 7) // 8
 
     def dump(self) -> bytes:
-        return encode_event(self.event_id)
+        return encode_event(self.event_id, self.thread_id)
 
     @staticmethod
     def deserialize(s: dict):
@@ -78,12 +94,14 @@ class EventEncoder(json.JSONEncoder):
         if isinstance(o, Event):
             return o.serialize()
         else:
-            super().default(o)
+            return super().default(o)
 
 
 class LineEvent(Event):
-    def __init__(self, file: str, line: int, event_id: int):
-        super().__init__(file, line, event_id, EventType.LINE)
+    def __init__(
+        self, file: str, line: int, event_id: int, thread_id: Optional[int] = None
+    ):
+        super().__init__(file, line, event_id, EventType.LINE, thread_id)
 
     def handle(self, model: Any):
         model.handle_line_event(self)
@@ -92,15 +110,25 @@ class LineEvent(Event):
     def deserialize(s: dict):
         assert all(p in s for p in ["file", "line", "id"])
         assert s["event_type"] == EventType.LINE.value
+        if "thread_id" in s:
+            return LineEvent(*[s[p] for p in ["file", "line", "id"]], s["thread_id"])
         return LineEvent(*[s[p] for p in ["file", "line", "id"]])
 
     def instantiate(self):
-        return LineEvent(self.file, self.line, self.event_id)
+        return LineEvent(self.file, self.line, self.event_id, self.thread_id)
 
 
 class BranchEvent(Event):
-    def __init__(self, file: str, line: int, event_id: int, then_id: int, else_id: int):
-        super().__init__(file, line, event_id, EventType.BRANCH)
+    def __init__(
+        self,
+        file: str,
+        line: int,
+        event_id: int,
+        then_id: int,
+        else_id: int,
+        thread_id: Optional[int] = None,
+    ):
+        super().__init__(file, line, event_id, EventType.BRANCH, thread_id)
         self.then_id = then_id
         self.else_id = else_id
 
@@ -140,8 +168,9 @@ class DefEvent(Event):
         var_id: int = None,
         value: Any = None,
         type_: str = None,
+        thread_id: Optional[int] = None,
     ):
-        super().__init__(file, line, event_id, EventType.DEF)
+        super().__init__(file, line, event_id, EventType.DEF, thread_id)
         self.var = var
         self.var_id = var_id
         self.value = value
@@ -167,6 +196,7 @@ class DefEvent(Event):
             self.var_id,
             self.value,
             self.type_,
+            self.thread_id,
         )
 
     @staticmethod
@@ -182,7 +212,14 @@ class DefEvent(Event):
         type_: str,
     ):
         return DefEvent(
-            self.file, self.line, self.event_id, self.var, var_id, value, type_
+            self.file,
+            self.line,
+            self.event_id,
+            self.var,
+            var_id,
+            value,
+            type_,
+            self.thread_id,
         )
 
 
@@ -195,8 +232,9 @@ class FunctionEvent(Event, ABC):
         event_type: EventType,
         function: str,
         function_id: int,
+        thread_id: Optional[int] = None,
     ):
-        super().__init__(file, line, event_id, event_type)
+        super().__init__(file, line, event_id, event_type, thread_id)
         self.function = function
         self.function_id = function_id
 
@@ -209,10 +247,22 @@ class FunctionEvent(Event, ABC):
 
 class FunctionEnterEvent(FunctionEvent):
     def __init__(
-        self, file: str, line: int, event_id: int, function: str, function_id: int
+        self,
+        file: str,
+        line: int,
+        event_id: int,
+        function: str,
+        function_id: int,
+        thread_id: Optional[int] = None,
     ):
         super().__init__(
-            file, line, event_id, EventType.FUNCTION_ENTER, function, function_id
+            file,
+            line,
+            event_id,
+            EventType.FUNCTION_ENTER,
+            function,
+            function_id,
+            thread_id,
         )
 
     def __repr__(self):
@@ -231,7 +281,12 @@ class FunctionEnterEvent(FunctionEvent):
 
     def instantiate(self):
         return FunctionEnterEvent(
-            self.file, self.line, self.event_id, self.function, self.function_id
+            self.file,
+            self.line,
+            self.event_id,
+            self.function,
+            self.function_id,
+            self.thread_id,
         )
 
 
@@ -246,9 +301,16 @@ class FunctionExitEvent(FunctionEvent):
         tmp_var: str,
         return_value: Any = None,
         type_: str = None,
+        thread_id: Optional[int] = None,
     ):
         super().__init__(
-            file, line, event_id, EventType.FUNCTION_EXIT, function, function_id
+            file,
+            line,
+            event_id,
+            EventType.FUNCTION_EXIT,
+            function,
+            function_id,
+            thread_id,
         )
         self.tmp_var = tmp_var
         self.return_value = return_value
@@ -264,7 +326,9 @@ class FunctionExitEvent(FunctionEvent):
         model.handle_function_exit_event(self)
 
     def dump(self):
-        return encode_function_exit_event(self.event_id, self.return_value, self.type_)
+        return encode_function_exit_event(
+            self.event_id, self.return_value, self.type_, self.thread_id
+        )
 
     def serialize(self):
         default = super().serialize()
@@ -298,15 +362,28 @@ class FunctionExitEvent(FunctionEvent):
             self.tmp_var,
             return_value,
             type_,
+            self.thread_id,
         )
 
 
 class FunctionErrorEvent(FunctionEvent):
     def __init__(
-        self, file: str, line: int, event_id: int, function: str, function_id: int
+        self,
+        file: str,
+        line: int,
+        event_id: int,
+        function: str,
+        function_id: int,
+        thread_id: Optional[int] = None,
     ):
         super().__init__(
-            file, line, event_id, EventType.FUNCTION_ERROR, function, function_id
+            file,
+            line,
+            event_id,
+            EventType.FUNCTION_ERROR,
+            function,
+            function_id,
+            thread_id,
         )
 
     def __repr__(self):
@@ -325,7 +402,12 @@ class FunctionErrorEvent(FunctionEvent):
 
     def instantiate(self):
         return FunctionErrorEvent(
-            self.file, self.line, self.event_id, self.function, self.function_id
+            self.file,
+            self.line,
+            self.event_id,
+            self.function,
+            self.function_id,
+            self.thread_id,
         )
 
 
@@ -338,8 +420,9 @@ class ConditionEvent(Event):
         condition: str,
         tmp_var: str,
         value: bool = None,
+        thread_id: Optional[int] = None,
     ):
-        super().__init__(file, line, event_id, EventType.CONDITION)
+        super().__init__(file, line, event_id, EventType.CONDITION, thread_id)
         self.value = value
         self.tmp_var = tmp_var
         self.condition = condition
@@ -360,6 +443,7 @@ class ConditionEvent(Event):
         return encode_condition_event(
             self.event_id,
             self.value,
+            self.thread_id,
         )
 
     @staticmethod
@@ -381,14 +465,21 @@ class ConditionEvent(Event):
             self.condition,
             self.tmp_var,
             value,
+            self.thread_id,
         )
 
 
 class LoopEvent(Event, ABC):
     def __init__(
-        self, file: str, line: int, event_id: int, event_type: EventType, loop_id: int
+        self,
+        file: str,
+        line: int,
+        event_id: int,
+        event_type: EventType,
+        loop_id: int,
+        thread_id: Optional[int] = None,
     ):
-        super().__init__(file, line, event_id, event_type)
+        super().__init__(file, line, event_id, event_type, thread_id)
         self.loop_id = loop_id
 
     def serialize(self):
@@ -398,8 +489,15 @@ class LoopEvent(Event, ABC):
 
 
 class LoopBeginEvent(LoopEvent):
-    def __init__(self, file: str, line: int, event_id: int, loop_id: int):
-        super().__init__(file, line, event_id, EventType.LOOP_BEGIN, loop_id)
+    def __init__(
+        self,
+        file: str,
+        line: int,
+        event_id: int,
+        loop_id: int,
+        thread_id: Optional[int] = None,
+    ):
+        super().__init__(file, line, event_id, EventType.LOOP_BEGIN, loop_id, thread_id)
 
     def handle(self, model: Any):
         model.handle_loop_begin_event(self)
@@ -411,12 +509,21 @@ class LoopBeginEvent(LoopEvent):
         return LoopBeginEvent(*[s[p] for p in ["file", "line", "id", "loop_id"]])
 
     def instantiate(self):
-        return LoopBeginEvent(self.file, self.line, self.event_id, self.loop_id)
+        return LoopBeginEvent(
+            self.file, self.line, self.event_id, self.loop_id, self.thread_id
+        )
 
 
 class LoopHitEvent(LoopEvent):
-    def __init__(self, file: str, line: int, event_id: int, loop_id: int):
-        super().__init__(file, line, event_id, EventType.LOOP_HIT, loop_id)
+    def __init__(
+        self,
+        file: str,
+        line: int,
+        event_id: int,
+        loop_id: int,
+        thread_id: Optional[int] = None,
+    ):
+        super().__init__(file, line, event_id, EventType.LOOP_HIT, loop_id, thread_id)
 
     def handle(self, model: Any):
         model.handle_loop_hit_event(self)
@@ -428,12 +535,21 @@ class LoopHitEvent(LoopEvent):
         return LoopHitEvent(*[s[p] for p in ["file", "line", "id", "loop_id"]])
 
     def instantiate(self):
-        return LoopHitEvent(self.file, self.line, self.event_id, self.loop_id)
+        return LoopHitEvent(
+            self.file, self.line, self.event_id, self.loop_id, self.thread_id
+        )
 
 
 class LoopEndEvent(LoopEvent):
-    def __init__(self, file: str, line: int, event_id: int, loop_id: int):
-        super().__init__(file, line, event_id, EventType.LOOP_END, loop_id)
+    def __init__(
+        self,
+        file: str,
+        line: int,
+        event_id: int,
+        loop_id: int,
+        thread_id: Optional[int] = None,
+    ):
+        super().__init__(file, line, event_id, EventType.LOOP_END, loop_id, thread_id)
 
     def handle(self, model: Any):
         model.handle_loop_end_event(self)
@@ -445,14 +561,22 @@ class LoopEndEvent(LoopEvent):
         return LoopEndEvent(*[s[p] for p in ["file", "line", "id", "loop_id"]])
 
     def instantiate(self):
-        return LoopEndEvent(self.file, self.line, self.event_id, self.loop_id)
+        return LoopEndEvent(
+            self.file, self.line, self.event_id, self.loop_id, self.thread_id
+        )
 
 
 class UseEvent(Event):
     def __init__(
-        self, file: str, line: int, event_id: int, var: str, var_id: int = None
+        self,
+        file: str,
+        line: int,
+        event_id: int,
+        var: str,
+        var_id: int = None,
+        thread_id: Optional[int] = None,
     ):
-        super().__init__(file, line, event_id, EventType.USE)
+        super().__init__(file, line, event_id, EventType.USE, thread_id)
         self.var = var
         self.var_id = var_id
 
@@ -468,7 +592,7 @@ class UseEvent(Event):
         return default
 
     def dump(self):
-        return encode_use_event(self.event_id, self.var_id)
+        return encode_use_event(self.event_id, self.var_id, self.thread_id)
 
     @staticmethod
     def deserialize(s: dict):
@@ -477,7 +601,9 @@ class UseEvent(Event):
         return UseEvent(*[s[p] for p in ["file", "line", "id", "var"]])
 
     def instantiate(self, var_id):
-        return UseEvent(self.file, self.line, self.event_id, self.var, var_id)
+        return UseEvent(
+            self.file, self.line, self.event_id, self.var, var_id, self.thread_id
+        )
 
 
 class LenEvent(Event):
@@ -489,8 +615,9 @@ class LenEvent(Event):
         var: str,
         var_id: int = None,
         length: int = None,
+        thread_id: Optional[int] = None,
     ):
-        super().__init__(file, line, event_id, EventType.LEN)
+        super().__init__(file, line, event_id, EventType.LEN, thread_id)
         self.var = var
         self.var_id = var_id
         self.length = length
@@ -514,6 +641,7 @@ class LenEvent(Event):
             self.event_id,
             self.var_id,
             self.length,
+            self.thread_id,
         )
 
     @staticmethod
@@ -523,7 +651,15 @@ class LenEvent(Event):
         return LenEvent(*[s[p] for p in ["file", "line", "id", "var"]])
 
     def instantiate(self, var_id, length):
-        return LenEvent(self.file, self.line, self.event_id, self.var, var_id, length)
+        return LenEvent(
+            self.file,
+            self.line,
+            self.event_id,
+            self.var,
+            var_id,
+            length,
+            self.thread_id,
+        )
 
 
 class TestFunctionEvent(Event, ABC):
@@ -762,14 +898,27 @@ def read_len_int(stream: BinaryIO, n: int, signed: bool = False) -> int:
     return read_int(stream, length, signed=signed)
 
 
-def load_event(e: bytes, base_events: Dict[int, Event]) -> Event:
-    return load_next_event(io.BytesIO(e), base_events)
+def load_event(
+    e: bytes, base_events: Dict[int, Event], with_thread_id: bool = False
+) -> Event:
+    return load_next_event(io.BytesIO(e), base_events, with_thread_id)
 
 
-def load_next_event(stream: BinaryIO, events: Dict[int, Event]) -> Event:
+def load_next_event(
+    stream: BinaryIO, events: Dict[int, Event], with_thread_id: bool = False
+) -> Event:
     test = stream.read(1)
     if not test:
         raise ValueError("empty stream")
+
+    # Read thread_id if present
+    thread_id = None
+    if with_thread_id:
+        thread_id = read_int(stream, int.from_bytes(test, ENDIAN))
+        test = stream.read(1)
+        if not test:
+            raise ValueError("unexpected end of stream")
+
     event = events[read_int(stream, int.from_bytes(test, ENDIAN))]
     if event.event_type == EventType.DEF:
         # noinspection PyBroadException
@@ -848,12 +997,14 @@ def load_next_event(stream: BinaryIO, events: Dict[int, Event]) -> Event:
         return event.instantiate()
 
 
-def load(path, base_events: Dict[int, Event]) -> List[Event]:
+def load(
+    path, base_events: Dict[int, Event], with_thread_id: bool = False
+) -> List[Event]:
     events = list()
     with open(path, "rb") as fp:
         while True:
             try:
-                events.append(load_next_event(fp, base_events))
+                events.append(load_next_event(fp, base_events, with_thread_id))
             except:
                 break
     return events

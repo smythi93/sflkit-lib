@@ -5,6 +5,7 @@ sys.path = sys.path[1:] + sys.path[:1]
 import atexit
 import os
 import pickle
+import threading
 from typing import Any
 
 sys.path = sys.path[-1:] + sys.path[:-1]
@@ -12,6 +13,14 @@ sys.path = sys.path[-1:] + sys.path[:-1]
 from sflkitlib.events import codec
 
 _event_path_file = open(os.getenv("EVENTS_PATH", default="EVENTS_PATH"), "wb")
+_threading = int(os.getenv("EVENTS_THREADS", default="0"))
+
+
+def _get_thread_id():
+    """Get the current thread ID if threading is enabled, otherwise None."""
+    if _threading:
+        return threading.get_ident()
+    return None
 
 
 def reset():
@@ -58,11 +67,11 @@ atexit.register(dump_events)
 
 
 def add_line_event(event_id: int):
-    write(codec.encode_event(event_id))
+    write(codec.encode_event(event_id, _get_thread_id()))
 
 
 def add_branch_event(event_id: int):
-    write(codec.encode_event(event_id))
+    write(codec.encode_event(event_id, _get_thread_id()))
 
 
 def add_def_event(event_id: int, var_id: int, value: Any, type_: type):
@@ -74,6 +83,7 @@ def add_def_event(event_id: int, var_id: int, value: Any, type_: type):
                     var_id,
                     pickle.dumps(value),
                     type_.__name__,
+                    _get_thread_id(),
                 )
             )
         else:
@@ -83,12 +93,13 @@ def add_def_event(event_id: int, var_id: int, value: Any, type_: type):
                     var_id,
                     pickle.dumps(None),
                     f"{type_.__module__}.{type_.__name__}",
+                    _get_thread_id(),
                 )
             )
 
 
 def add_function_enter_event(event_id: int):
-    write(codec.encode_event(event_id))
+    write(codec.encode_event(event_id, _get_thread_id()))
 
 
 def add_function_exit_event(
@@ -105,6 +116,7 @@ def add_function_exit_event(
                 event_id,
                 pickle.dumps(return_value),
                 type_.__name__,
+                _get_thread_id(),
             )
         )
     else:
@@ -115,6 +127,7 @@ def add_function_exit_event(
                     event_id,
                     pickle.dumps(bool(return_value)),
                     f"{type_.__module__}.{type_.__name__}",
+                    _get_thread_id(),
                 )
             )
         except:
@@ -123,64 +136,65 @@ def add_function_exit_event(
                     event_id,
                     pickle.dumps(None),
                     f"{type_.__module__}.{type_.__name__}",
+                    _get_thread_id(),
                 )
             )
 
 
 def add_function_error_event(event_id: int):
-    write(codec.encode_event(event_id))
+    write(codec.encode_event(event_id, _get_thread_id()))
 
 
 def add_condition_event(event_id: int, value: Any):
     if value:
-        write(codec.encode_condition_event(event_id, True))
+        write(codec.encode_condition_event(event_id, True, _get_thread_id()))
     else:
-        write(codec.encode_condition_event(event_id, False))
+        write(codec.encode_condition_event(event_id, False, _get_thread_id()))
 
 
 def add_loop_begin_event(event_id: int):
-    write(codec.encode_event(event_id))
+    write(codec.encode_event(event_id, _get_thread_id()))
 
 
 def add_loop_hit_event(event_id: int):
-    write(codec.encode_event(event_id))
+    write(codec.encode_event(event_id, _get_thread_id()))
 
 
 def add_loop_end_event(event_id: int):
-    write(codec.encode_event(event_id))
+    write(codec.encode_event(event_id, _get_thread_id()))
 
 
 def add_use_event(event_id: int, var_id: int):
     if var_id is not None:
-        write(codec.encode_use_event(event_id, var_id))
+        write(codec.encode_use_event(event_id, var_id, _get_thread_id()))
 
 
 def add_len_event(event_id: int, var_id: int, length: int):
     if var_id is not None:
-        write(codec.encode_len_event(event_id, var_id, length))
+        write(codec.encode_len_event(event_id, var_id, length, _get_thread_id()))
 
 
 def add_test_start_event(event_id: int):
-    write(codec.encode_event(event_id))
+    write(codec.encode_event(event_id, _get_thread_id()))
 
 
 def add_test_end_event(event_id: int):
-    write(codec.encode_event(event_id))
+    write(codec.encode_event(event_id, _get_thread_id()))
 
 
 def add_test_line_event(event_id: int):
-    write(codec.encode_event(event_id))
+    write(codec.encode_event(event_id, _get_thread_id()))
 
 
 def add_test_def_event(event_id: int, var_id: int):
     if var_id is not None:
-        write(codec.encode_base_def_event(event_id, var_id))
+        write(codec.encode_base_def_event(event_id, var_id, _get_thread_id()))
 
 
 def add_test_use_event(event_id: int, var_id: int):
     if var_id is not None:
-        write(codec.encode_use_event(event_id, var_id))
+        write(codec.encode_use_event(event_id, var_id, _get_thread_id()))
 
 
 def add_test_assert_event(event_id: int):
-    write(codec.encode_event(event_id))
+    write(codec.encode_event(event_id, _get_thread_id()))
