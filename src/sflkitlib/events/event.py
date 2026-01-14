@@ -114,8 +114,8 @@ class LineEvent(Event):
             return LineEvent(*[s[p] for p in ["file", "line", "id"]], s["thread_id"])
         return LineEvent(*[s[p] for p in ["file", "line", "id"]])
 
-    def instantiate(self):
-        return LineEvent(self.file, self.line, self.event_id, self.thread_id)
+    def instantiate(self, thread_id: Optional[int] = None):
+        return LineEvent(self.file, self.line, self.event_id, thread_id)
 
 
 class BranchEvent(Event):
@@ -152,9 +152,9 @@ class BranchEvent(Event):
             *[s[p] for p in ["file", "line", "id", "then_id", "else_id"]]
         )
 
-    def instantiate(self):
+    def instantiate(self, thread_id: Optional[int] = None):
         return BranchEvent(
-            self.file, self.line, self.event_id, self.then_id, self.else_id
+            self.file, self.line, self.event_id, self.then_id, self.else_id, thread_id
         )
 
 
@@ -210,6 +210,7 @@ class DefEvent(Event):
         var_id: int,
         value: Any,
         type_: str,
+        thread_id: Optional[int] = None,
     ):
         return DefEvent(
             self.file,
@@ -219,7 +220,7 @@ class DefEvent(Event):
             var_id,
             value,
             type_,
-            self.thread_id,
+            thread_id,
         )
 
 
@@ -279,14 +280,14 @@ class FunctionEnterEvent(FunctionEvent):
             *[s[p] for p in ["file", "line", "id", "function", "function_id"]]
         )
 
-    def instantiate(self):
+    def instantiate(self, thread_id: Optional[int] = None):
         return FunctionEnterEvent(
             self.file,
             self.line,
             self.event_id,
             self.function,
             self.function_id,
-            self.thread_id,
+            thread_id,
         )
 
 
@@ -352,6 +353,7 @@ class FunctionExitEvent(FunctionEvent):
         self,
         return_value: Any,
         type_: str,
+        thread_id: Optional[int] = None,
     ):
         return FunctionExitEvent(
             self.file,
@@ -362,7 +364,7 @@ class FunctionExitEvent(FunctionEvent):
             self.tmp_var,
             return_value,
             type_,
-            self.thread_id,
+            thread_id,
         )
 
 
@@ -400,14 +402,14 @@ class FunctionErrorEvent(FunctionEvent):
             *[s[p] for p in ["file", "line", "id", "function", "function_id"]]
         )
 
-    def instantiate(self):
+    def instantiate(self, thread_id: Optional[int] = None):
         return FunctionErrorEvent(
             self.file,
             self.line,
             self.event_id,
             self.function,
             self.function_id,
-            self.thread_id,
+            thread_id,
         )
 
 
@@ -439,11 +441,11 @@ class ConditionEvent(Event):
         default["tmp_var"] = self.tmp_var
         return default
 
-    def dump(self):
+    def dump(self, thread_id: Optional[int] = None):
         return encode_condition_event(
             self.event_id,
             self.value,
-            self.thread_id,
+            thread_id,
         )
 
     @staticmethod
@@ -457,6 +459,7 @@ class ConditionEvent(Event):
     def instantiate(
         self,
         value: bool,
+        thread_id: Optional[int] = None,
     ):
         return ConditionEvent(
             self.file,
@@ -465,7 +468,7 @@ class ConditionEvent(Event):
             self.condition,
             self.tmp_var,
             value,
-            self.thread_id,
+            thread_id,
         )
 
 
@@ -508,9 +511,9 @@ class LoopBeginEvent(LoopEvent):
         assert s["event_type"] == EventType.LOOP_BEGIN.value
         return LoopBeginEvent(*[s[p] for p in ["file", "line", "id", "loop_id"]])
 
-    def instantiate(self):
+    def instantiate(self, thread_id: Optional[int] = None):
         return LoopBeginEvent(
-            self.file, self.line, self.event_id, self.loop_id, self.thread_id
+            self.file, self.line, self.event_id, self.loop_id, thread_id
         )
 
 
@@ -534,9 +537,9 @@ class LoopHitEvent(LoopEvent):
         assert s["event_type"] == EventType.LOOP_HIT.value
         return LoopHitEvent(*[s[p] for p in ["file", "line", "id", "loop_id"]])
 
-    def instantiate(self):
+    def instantiate(self, thread_id: Optional[int] = None):
         return LoopHitEvent(
-            self.file, self.line, self.event_id, self.loop_id, self.thread_id
+            self.file, self.line, self.event_id, self.loop_id, thread_id
         )
 
 
@@ -560,9 +563,9 @@ class LoopEndEvent(LoopEvent):
         assert s["event_type"] == EventType.LOOP_END.value
         return LoopEndEvent(*[s[p] for p in ["file", "line", "id", "loop_id"]])
 
-    def instantiate(self):
+    def instantiate(self, thread_id: Optional[int] = None):
         return LoopEndEvent(
-            self.file, self.line, self.event_id, self.loop_id, self.thread_id
+            self.file, self.line, self.event_id, self.loop_id, thread_id
         )
 
 
@@ -600,9 +603,9 @@ class UseEvent(Event):
         assert s["event_type"] == EventType.USE.value
         return UseEvent(*[s[p] for p in ["file", "line", "id", "var"]])
 
-    def instantiate(self, var_id):
+    def instantiate(self, var_id, thread_id: Optional[int] = None):
         return UseEvent(
-            self.file, self.line, self.event_id, self.var, var_id, self.thread_id
+            self.file, self.line, self.event_id, self.var, var_id, thread_id
         )
 
 
@@ -650,7 +653,7 @@ class LenEvent(Event):
         assert s["event_type"] == EventType.LEN.value
         return LenEvent(*[s[p] for p in ["file", "line", "id", "var"]])
 
-    def instantiate(self, var_id, length):
+    def instantiate(self, var_id, length, thread_id: Optional[int] = None):
         return LenEvent(
             self.file,
             self.line,
@@ -658,7 +661,7 @@ class LenEvent(Event):
             self.var,
             var_id,
             length,
-            self.thread_id,
+            thread_id,
         )
 
 
@@ -671,8 +674,9 @@ class TestFunctionEvent(Event, ABC):
         event_type: EventType,
         test: str,
         test_id: int,
+        thread_id: Optional[int] = None,
     ):
-        super().__init__(file, line, event_id, event_type)
+        super().__init__(file, line, event_id, event_type, thread_id)
         self.test = test
         self.test_id = test_id
 
@@ -684,8 +688,18 @@ class TestFunctionEvent(Event, ABC):
 
 
 class TestStartEvent(TestFunctionEvent):
-    def __init__(self, file: str, line: int, event_id: int, test: str, test_id: int):
-        super().__init__(file, line, event_id, EventType.TEST_START, test, test_id)
+    def __init__(
+        self,
+        file: str,
+        line: int,
+        event_id: int,
+        test: str,
+        test_id: int,
+        thread_id: Optional[int] = None,
+    ):
+        super().__init__(
+            file, line, event_id, EventType.TEST_START, test, test_id, thread_id
+        )
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.file},{self.line},{self.event_id},{self.test})"
@@ -701,15 +715,25 @@ class TestStartEvent(TestFunctionEvent):
             *[s[p] for p in ["file", "line", "id", "test", "test_id"]]
         )
 
-    def instantiate(self):
+    def instantiate(self, thread_id: Optional[int] = None):
         return TestStartEvent(
-            self.file, self.line, self.event_id, self.test, self.test_id
+            self.file, self.line, self.event_id, self.test, self.test_id, thread_id
         )
 
 
 class TestEndEvent(TestFunctionEvent):
-    def __init__(self, file: str, line: int, event_id: int, test: str, test_id: int):
-        super().__init__(file, line, event_id, EventType.TEST_END, test, test_id)
+    def __init__(
+        self,
+        file: str,
+        line: int,
+        event_id: int,
+        test: str,
+        test_id: int,
+        thread_id: Optional[int] = None,
+    ):
+        super().__init__(
+            file, line, event_id, EventType.TEST_END, test, test_id, thread_id
+        )
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.file},{self.line},{self.event_id},{self.test})"
@@ -723,15 +747,17 @@ class TestEndEvent(TestFunctionEvent):
         assert s["event_type"] == EventType.TEST_END.value
         return TestEndEvent(*[s[p] for p in ["file", "line", "id", "test", "test_id"]])
 
-    def instantiate(self):
+    def instantiate(self, thread_id: Optional[int] = None):
         return TestEndEvent(
-            self.file, self.line, self.event_id, self.test, self.test_id
+            self.file, self.line, self.event_id, self.test, self.test_id, thread_id
         )
 
 
 class TestLineEvent(Event):
-    def __init__(self, file: str, line: int, event_id: int):
-        super().__init__(file, line, event_id, EventType.TEST_LINE)
+    def __init__(
+        self, file: str, line: int, event_id: int, thread_id: Optional[int] = None
+    ):
+        super().__init__(file, line, event_id, EventType.TEST_LINE, thread_id)
 
     def handle(self, model: Any):
         model.handle_test_line_event(self)
@@ -742,8 +768,8 @@ class TestLineEvent(Event):
         assert s["event_type"] == EventType.TEST_LINE.value
         return TestLineEvent(*[s[p] for p in ["file", "line", "id"]])
 
-    def instantiate(self):
-        return TestLineEvent(self.file, self.line, self.event_id)
+    def instantiate(self, thread_id: Optional[int] = None):
+        return TestLineEvent(self.file, self.line, self.event_id, thread_id)
 
 
 class TestDefEvent(Event):
@@ -754,8 +780,9 @@ class TestDefEvent(Event):
         event_id: int,
         var: str,
         var_id: int = None,
+        thread_id: Optional[int] = None,
     ):
-        super().__init__(file, line, event_id, EventType.TEST_DEF)
+        super().__init__(file, line, event_id, EventType.TEST_DEF, thread_id)
         self.var = var
         self.var_id = var_id
 
@@ -788,15 +815,24 @@ class TestDefEvent(Event):
     def instantiate(
         self,
         var_id: int,
+        thread_id: Optional[int] = None,
     ):
-        return TestDefEvent(self.file, self.line, self.event_id, self.var, var_id)
+        return TestDefEvent(
+            self.file, self.line, self.event_id, self.var, var_id, thread_id
+        )
 
 
 class TestUseEvent(Event):
     def __init__(
-        self, file: str, line: int, event_id: int, var: str, var_id: int = None
+        self,
+        file: str,
+        line: int,
+        event_id: int,
+        var: str,
+        var_id: int = None,
+        thread_id: Optional[int] = None,
     ):
-        super().__init__(file, line, event_id, EventType.TEST_USE)
+        super().__init__(file, line, event_id, EventType.TEST_USE, thread_id)
         self.var = var
         self.var_id = var_id
 
@@ -820,8 +856,10 @@ class TestUseEvent(Event):
         assert s["event_type"] == EventType.TEST_USE.value
         return TestUseEvent(*[s[p] for p in ["file", "line", "id", "var"]])
 
-    def instantiate(self, var_id):
-        return TestUseEvent(self.file, self.line, self.event_id, self.var, var_id)
+    def instantiate(self, var_id, thread_id: Optional[int] = None):
+        return TestUseEvent(
+            self.file, self.line, self.event_id, self.var, var_id, thread_id
+        )
 
 
 class TestAssertEvent(Event):
@@ -914,7 +952,7 @@ def load_next_event(
     # Read thread_id if present
     thread_id = None
     if with_thread_id:
-        thread_id = read_int(stream, int.from_bytes(test, ENDIAN))
+        thread_id = read_len_int(stream, int.from_bytes(test, ENDIAN))
         test = stream.read(1)
         if not test:
             raise ValueError("unexpected end of stream")
@@ -927,74 +965,48 @@ def load_next_event(
         type_ = read_len_str(stream, 2)
         try:
             return event.instantiate(
-                var_id,
-                pickle.loads(value),
-                type_,
+                var_id, pickle.loads(value), type_, thread_id=thread_id
             )
         except:
             value = value.decode("utf8")
             if value == "True":
-                return event.instantiate(
-                    var_id,
-                    True,
-                    type_,
-                )
+                return event.instantiate(var_id, True, type_, thread_id=thread_id)
             elif value == "False":
-                return event.instantiate(
-                    var_id,
-                    False,
-                    type_,
-                )
+                return event.instantiate(var_id, False, type_, thread_id=thread_id)
             else:
-                return event.instantiate(
-                    var_id,
-                    None,
-                    type_,
-                )
+                return event.instantiate(var_id, None, type_, thread_id=thread_id)
     elif event.event_type == EventType.USE:
         var_id = read_len_int(stream, 1)
-        return event.instantiate(var_id)
+        return event.instantiate(var_id, thread_id=thread_id)
     elif event.event_type == EventType.FUNCTION_EXIT:
         # noinspection PyBroadException
         value = read_len_bytes(stream, 4)
         type_ = read_len_str(stream, 2)
         try:
-            return event.instantiate(
-                pickle.loads(value),
-                type_,
-            )
+            return event.instantiate(pickle.loads(value), type_, thread_id=thread_id)
         except:
             value = value.decode("utf8")
             if value == "True":
-                return event.instantiate(
-                    True,
-                    type_,
-                )
+                return event.instantiate(True, type_, thread_id=thread_id)
             elif value == "False":
-                return event.instantiate(
-                    False,
-                    type_,
-                )
+                return event.instantiate(False, type_, thread_id=thread_id)
             else:
-                return event.instantiate(
-                    None,
-                    type_,
-                )
+                return event.instantiate(None, type_, thread_id=thread_id)
     elif event.event_type == EventType.CONDITION:
         value = bool(read_int(stream, 1))
-        return event.instantiate(value)
+        return event.instantiate(value, thread_id=thread_id)
     elif event.event_type == EventType.LEN:
         var_id = read_len_int(stream, 1)
         length = read_len_int(stream, 1)
-        return event.instantiate(var_id, length)
+        return event.instantiate(var_id, length, thread_id=thread_id)
     elif event.event_type == EventType.TEST_DEF:
         var_id = read_len_int(stream, 1)
-        return event.instantiate(var_id)
+        return event.instantiate(var_id, thread_id=thread_id)
     elif event.event_type == EventType.TEST_USE:
         var_id = read_len_int(stream, 1)
-        return event.instantiate(var_id)
+        return event.instantiate(var_id, thread_id=thread_id)
     else:
-        return event.instantiate()
+        return event.instantiate(thread_id=thread_id)
 
 
 def load(
