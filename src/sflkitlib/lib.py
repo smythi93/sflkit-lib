@@ -17,7 +17,16 @@ _threading = int(os.getenv("EVENTS_THREADS", default="0"))
 
 
 def _get_thread_id():
-    """Get the current thread ID if threading is enabled, otherwise None."""
+    """Get the current thread ID if threading is enabled, otherwise None.
+
+    Uses threading.get_ident() instead of os.getpid() because:
+    - threading.get_ident() distinguishes between different threads in the same process
+    - os.getpid() returns the same value for all threads in a process
+    - This is needed to track events from concurrent threads properly
+
+    Returns:
+        int or None: Thread identifier if threading is enabled, None otherwise
+    """
     if _threading:
         return threading.get_ident()
     return None
