@@ -863,8 +863,10 @@ class TestUseEvent(Event):
 
 
 class TestAssertEvent(Event):
-    def __init__(self, file: str, line: int, event_id: int):
-        super().__init__(file, line, event_id, EventType.TEST_ASSERT)
+    def __init__(
+        self, file: str, line: int, event_id: int, thread_id: Optional[int] = None
+    ):
+        super().__init__(file, line, event_id, EventType.TEST_ASSERT, thread_id)
 
     def handle(self, model: Any):
         model.handle_test_assert_event(self)
@@ -875,8 +877,8 @@ class TestAssertEvent(Event):
         assert s["event_type"] == EventType.TEST_ASSERT.value
         return TestAssertEvent(*[s[p] for p in ["file", "line", "id"]])
 
-    def instantiate(self):
-        return TestAssertEvent(self.file, self.line, self.event_id)
+    def instantiate(self, thread_id: Optional[int] = None):
+        return TestAssertEvent(self.file, self.line, self.event_id, thread_id)
 
 
 def serialize(event: Event):
