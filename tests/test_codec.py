@@ -178,3 +178,9 @@ class CodecTest(unittest.TestCase):
         e = event.LenEvent(FILE, LINE, ID, "x", 1, 5, thread_id)
         dump = codec.encode_len_event(ID, 1, 5, thread_id)
         self._assert(e, dump, {ID: e}, with_thread_id=True)
+
+    def test_encode_with_real_thread_id(self):
+        thread_id = 8681598528
+        e = event.LineEvent(FILE, LINE, ID, thread_id)
+        dump = codec.encode_event(ID, thread_id)
+        self._assert(e, dump, {ID: e}, with_thread_id=True)
