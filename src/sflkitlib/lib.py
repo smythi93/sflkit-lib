@@ -15,6 +15,10 @@ from sflkitlib.events import codec
 _event_path_file = open(os.getenv("EVENTS_PATH", default="EVENTS_PATH"), "wb")
 _threading = int(os.getenv("EVENTS_THREADS", default="0"))
 
+_thread_counter = 0
+_thread_counter_lock = threading.Lock()
+_thread_ids = {}
+
 
 def _get_thread_id():
     """Get the current thread ID if threading is enabled, otherwise None.
@@ -28,7 +32,13 @@ def _get_thread_id():
         int or None: Thread identifier if threading is enabled, None otherwise
     """
     if _threading:
-        return threading.get_ident()
+        thread = threading.current_thread()
+        if thread not in _thread_ids:
+            with _thread_counter_lock:
+                global _thread_counter
+                _thread_ids[thread] = _thread_counter
+                _thread_counter += 1
+        return _thread_ids[thread]
     return None
 
 

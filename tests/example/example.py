@@ -29,31 +29,27 @@ def compute_parallel(numbers, num_threads=2):
     results = {}
     lock = threading.Lock()
 
-    with open(f"ids_{''.join([str(n) for n in numbers])}.txt", "w") as f:
-        f.write(str(threading.get_ident()) + "\n")
+    def worker(nums):
+        sflkitlib.lib.add_line_event(3)
+        for n in nums:
+            fact = factorial(n)
+            with lock:
+                results[n] = fact
 
-        def worker(nums):
-            f.write(str(threading.get_ident()) + "\n")
-            sflkitlib.lib.add_line_event(3)
-            for n in nums:
-                fact = factorial(n)
-                with lock:
-                    results[n] = fact
+    chunk_size = len(numbers) // num_threads
+    threads = []
 
-        chunk_size = len(numbers) // num_threads
-        threads = []
+    for i in range(num_threads):
+        start = i * chunk_size
+        end = start + chunk_size if i < num_threads - 1 else len(numbers)
+        t = threading.Thread(target=worker, args=(numbers[start:end],))
+        threads.append(t)
+        t.start()
 
-        for i in range(num_threads):
-            start = i * chunk_size
-            end = start + chunk_size if i < num_threads - 1 else len(numbers)
-            t = threading.Thread(target=worker, args=(numbers[start:end],))
-            threads.append(t)
-            t.start()
+    sflkitlib.lib.add_def_event(5, id(threads), 0, int)
 
-        sflkitlib.lib.add_def_event(5, id(threads), 0, int)
+    for t in threads:
+        t.join()
 
-        for t in threads:
-            t.join()
-
-        sflkitlib.lib.add_line_event(4)
-        return [results[n] for n in numbers]
+    sflkitlib.lib.add_line_event(4)
+    return [results[n] for n in numbers]
