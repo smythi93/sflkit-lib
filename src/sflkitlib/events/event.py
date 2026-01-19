@@ -54,7 +54,7 @@ class Event(ABC):
         return f"{self.__class__.__name__}({self.file},{self.line},{self.event_id})"
 
     @abstractmethod
-    def handle(self, model: Any):
+    def handle(self, model: Any, *args, **kwargs):
         raise NotImplementedError()
 
     def serialize(self):
@@ -103,8 +103,8 @@ class LineEvent(Event):
     ):
         super().__init__(file, line, event_id, EventType.LINE, thread_id)
 
-    def handle(self, model: Any):
-        model.handle_line_event(self)
+    def handle(self, model: Any, *args, **kwargs):
+        model.handle_line_event(self, *args, **kwargs)
 
     @staticmethod
     def deserialize(s: dict):
@@ -132,8 +132,8 @@ class BranchEvent(Event):
         self.then_id = then_id
         self.else_id = else_id
 
-    def handle(self, model: Any):
-        model.handle_branch_event(self)
+    def handle(self, model: Any, *args, **kwargs):
+        model.handle_branch_event(self, *args, **kwargs)
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.file},{self.line},{self.event_id},{self.then_id},{self.else_id})"
@@ -182,8 +182,8 @@ class DefEvent(Event):
             f"{self.var},{self.var_id},{self.value})"
         )
 
-    def handle(self, model: Any):
-        model.handle_def_event(self)
+    def handle(self, model: Any, *args, **kwargs):
+        model.handle_def_event(self, *args, **kwargs)
 
     def serialize(self):
         default = super().serialize()
@@ -269,8 +269,8 @@ class FunctionEnterEvent(FunctionEvent):
     def __repr__(self):
         return f"{self.__class__.__name__}({self.file},{self.line},{self.event_id},{self.function})"
 
-    def handle(self, model: Any):
-        model.handle_function_enter_event(self)
+    def handle(self, model: Any, *args, **kwargs):
+        model.handle_function_enter_event(self, *args, **kwargs)
 
     @staticmethod
     def deserialize(s: dict):
@@ -323,8 +323,8 @@ class FunctionExitEvent(FunctionEvent):
             f"{self.function},{self.return_value},{self.type_})"
         )
 
-    def handle(self, model: Any):
-        model.handle_function_exit_event(self)
+    def handle(self, model: Any, *args, **kwargs):
+        model.handle_function_exit_event(self, *args, **kwargs)
 
     def dump(self):
         return encode_function_exit_event(
@@ -391,8 +391,8 @@ class FunctionErrorEvent(FunctionEvent):
     def __repr__(self):
         return f"{self.__class__.__name__}({self.file},{self.line},{self.event_id},{self.function},{self.function_id})"
 
-    def handle(self, model: Any):
-        model.handle_function_error_event(self)
+    def handle(self, model: Any, *args, **kwargs):
+        model.handle_function_error_event(self, *args, **kwargs)
 
     @staticmethod
     def deserialize(s: dict):
@@ -432,8 +432,8 @@ class ConditionEvent(Event):
     def __repr__(self):
         return f"{self.__class__.__name__}({self.file},{self.line},{self.event_id},{self.value},{self.condition})"
 
-    def handle(self, model: Any):
-        model.handle_condition_event(self)
+    def handle(self, model: Any, *args, **kwargs):
+        model.handle_condition_event(self, *args, **kwargs)
 
     def serialize(self):
         default = super().serialize()
@@ -502,8 +502,8 @@ class LoopBeginEvent(LoopEvent):
     ):
         super().__init__(file, line, event_id, EventType.LOOP_BEGIN, loop_id, thread_id)
 
-    def handle(self, model: Any):
-        model.handle_loop_begin_event(self)
+    def handle(self, model: Any, *args, **kwargs):
+        model.handle_loop_begin_event(self, *args, **kwargs)
 
     @staticmethod
     def deserialize(s: dict):
@@ -528,8 +528,8 @@ class LoopHitEvent(LoopEvent):
     ):
         super().__init__(file, line, event_id, EventType.LOOP_HIT, loop_id, thread_id)
 
-    def handle(self, model: Any):
-        model.handle_loop_hit_event(self)
+    def handle(self, model: Any, *args, **kwargs):
+        model.handle_loop_hit_event(self, *args, **kwargs)
 
     @staticmethod
     def deserialize(s: dict):
@@ -554,8 +554,8 @@ class LoopEndEvent(LoopEvent):
     ):
         super().__init__(file, line, event_id, EventType.LOOP_END, loop_id, thread_id)
 
-    def handle(self, model: Any):
-        model.handle_loop_end_event(self)
+    def handle(self, model: Any, *args, **kwargs):
+        model.handle_loop_end_event(self, *args, **kwargs)
 
     @staticmethod
     def deserialize(s: dict):
@@ -586,8 +586,8 @@ class UseEvent(Event):
     def __repr__(self):
         return f"{self.__class__.__name__}({self.file},{self.line},{self.event_id},{self.var},{self.var_id})"
 
-    def handle(self, model: Any):
-        model.handle_use_event(self)
+    def handle(self, model: Any, *args, **kwargs):
+        model.handle_use_event(self, *args, **kwargs)
 
     def serialize(self):
         default = super().serialize()
@@ -631,8 +631,8 @@ class LenEvent(Event):
             f"{self.var},{self.var_id},{self.length})"
         )
 
-    def handle(self, model: Any):
-        model.handle_len_event(self)
+    def handle(self, model: Any, *args, **kwargs):
+        model.handle_len_event(self, *args, **kwargs)
 
     def serialize(self):
         default = super().serialize()
@@ -704,8 +704,8 @@ class TestStartEvent(TestFunctionEvent):
     def __repr__(self):
         return f"{self.__class__.__name__}({self.file},{self.line},{self.event_id},{self.test})"
 
-    def handle(self, model: Any):
-        model.handle_test_start_event(self)
+    def handle(self, model: Any, *args, **kwargs):
+        model.handle_test_start_event(self, *args, **kwargs)
 
     @staticmethod
     def deserialize(s: dict):
@@ -738,8 +738,8 @@ class TestEndEvent(TestFunctionEvent):
     def __repr__(self):
         return f"{self.__class__.__name__}({self.file},{self.line},{self.event_id},{self.test})"
 
-    def handle(self, model: Any):
-        model.handle_test_end_event(self)
+    def handle(self, model: Any, *args, **kwargs):
+        model.handle_test_end_event(self, *args, **kwargs)
 
     @staticmethod
     def deserialize(s: dict):
@@ -759,8 +759,8 @@ class TestLineEvent(Event):
     ):
         super().__init__(file, line, event_id, EventType.TEST_LINE, thread_id)
 
-    def handle(self, model: Any):
-        model.handle_test_line_event(self)
+    def handle(self, model: Any, *args, **kwargs):
+        model.handle_test_line_event(self, *args, **kwargs)
 
     @staticmethod
     def deserialize(s: dict):
@@ -792,8 +792,8 @@ class TestDefEvent(Event):
             f"{self.var},{self.var_id})"
         )
 
-    def handle(self, model: Any):
-        model.handle_test_def_event(self)
+    def handle(self, model: Any, *args, **kwargs):
+        model.handle_test_def_event(self, *args, **kwargs)
 
     def serialize(self):
         default = super().serialize()
@@ -839,8 +839,8 @@ class TestUseEvent(Event):
     def __repr__(self):
         return f"{self.__class__.__name__}({self.file},{self.line},{self.event_id},{self.var},{self.var_id})"
 
-    def handle(self, model: Any):
-        model.handle_test_use_event(self)
+    def handle(self, model: Any, *args, **kwargs):
+        model.handle_test_use_event(self, *args, **kwargs)
 
     def serialize(self):
         default = super().serialize()
@@ -868,8 +868,8 @@ class TestAssertEvent(Event):
     ):
         super().__init__(file, line, event_id, EventType.TEST_ASSERT, thread_id)
 
-    def handle(self, model: Any):
-        model.handle_test_assert_event(self)
+    def handle(self, model: Any, *args, **kwargs):
+        model.handle_test_assert_event(self, *args, **kwargs)
 
     @staticmethod
     def deserialize(s: dict):
