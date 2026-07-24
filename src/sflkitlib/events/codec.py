@@ -1,6 +1,9 @@
+import struct
 from typing import Union, Any
 
 ENDIAN = "big"
+#: Big-endian IEEE-754 double, matching ENDIAN above.
+FLOAT_FORMAT = ">d"
 
 
 def get_byte_length(x: Union[int, float]):
@@ -94,6 +97,27 @@ def encode_condition_event(
         [
             (1 if value else 0).to_bytes(1, ENDIAN),
         ]
+    )
+
+
+def encode_condition_value_event(
+    event_id: int,
+    distance: Any,
+    thread_id: int = None,
+):
+    """
+    Encode a branch distance as a presence flag followed by a float64.
+
+    The flag distinguishes "no distance is defined here" -- non-numeric
+    operands, or a comparison that raised -- from a distance that happens to be
+    zero, which is the most interesting value there is.
+    """
+    if distance is None:
+        return encode_event(event_id, thread_id) + b"\x00"
+    return (
+        encode_event(event_id, thread_id)
+        + b"\x01"
+        + struct.pack(FLOAT_FORMAT, float(distance))
     )
 
 

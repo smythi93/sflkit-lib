@@ -1,4 +1,5 @@
 import io
+import struct
 import sys
 from abc import abstractmethod, ABC
 from typing import Any, List, Union, BinaryIO, Dict, Optional
@@ -9,9 +10,11 @@ from sflkitlib.events.codec import (
     encode_def_event,
     encode_function_exit_event,
     encode_condition_event,
+    encode_condition_value_event,
     encode_use_event,
     encode_len_event,
     ENDIAN,
+    FLOAT_FORMAT,
     encode_base_def_event,
 )
 
@@ -472,6 +475,84 @@ class ConditionEvent(Event):
         )
 
 
+class ConditionValueEvent(Event):
+    """
+    Companion to :class:`ConditionEvent` carrying a comparison's branch distance.
+
+    A boolean condition event says only whether a test held.  For a test of the
+    form ``lhs <op> rhs`` this event additionally reports *how far* the operands
+    were from making it hold, which is what search-based tooling needs in order
+    to steer towards the untaken branch.  It is emitted alongside the boolean
+    event rather than instead of it, so analyses unaware of it are unaffected.
+
+    :param condition: Source text of the comparison, for reporting.
+    :param op: The comparison operator, one of ``< <= > >= == !=``.
+    :param distance: Branch distance: zero or negative when the condition holds,
+        positive by the amount needed to make it hold otherwise.  ``None`` when
+        the operands were not numeric and no distance is defined.
+    """
+
+    def __init__(
+        self,
+        file: str,
+        line: int,
+        event_id: int,
+        condition: str,
+        op: str,
+        distance: Optional[float] = None,
+        thread_id: Optional[int] = None,
+    ):
+        super().__init__(file, line, event_id, EventType.CONDITION_VALUE, thread_id)
+        self.condition = condition
+        self.op = op
+        self.distance = distance
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}({self.file},{self.line},{self.event_id},"
+            f"{self.condition},{self.op},{self.distance})"
+        )
+
+    def handle(self, model: Any, *args, **kwargs):
+        model.handle_condition_value_event(self, *args, **kwargs)
+
+    def serialize(self):
+        default = super().serialize()
+        default["condition"] = self.condition
+        default["op"] = self.op
+        return default
+
+    def dump(self):
+        return encode_condition_value_event(
+            self.event_id,
+            self.distance,
+            self.thread_id,
+        )
+
+    @staticmethod
+    def deserialize(s: dict):
+        assert all(p in s for p in ["file", "line", "id", "condition", "op"])
+        assert s["event_type"] == EventType.CONDITION_VALUE.value
+        return ConditionValueEvent(
+            *[s[p] for p in ["file", "line", "id", "condition", "op"]]
+        )
+
+    def instantiate(
+        self,
+        distance: Optional[float],
+        thread_id: Optional[int] = None,
+    ):
+        return ConditionValueEvent(
+            self.file,
+            self.line,
+            self.event_id,
+            self.condition,
+            self.op,
+            distance,
+            thread_id,
+        )
+
+
 class LoopEvent(Event, ABC):
     def __init__(
         self,
@@ -897,6 +978,7 @@ event_mapping = {
     EventType.LOOP_HIT: LoopHitEvent,
     EventType.LOOP_END: LoopEndEvent,
     EventType.CONDITION: ConditionEvent,
+    EventType.CONDITION_VALUE: ConditionValueEvent,
     EventType.LEN: LenEvent,
     EventType.TEST_START: TestStartEvent,
     EventType.TEST_END: TestEndEvent,
@@ -997,6 +1079,14 @@ def load_next_event(
     elif event.event_type == EventType.CONDITION:
         value = bool(read_int(stream, 1))
         return event.instantiate(value, thread_id=thread_id)
+    elif event.event_type == EventType.CONDITION_VALUE:
+        distance = None
+        if read_int(stream, 1):
+            packed = stream.read(struct.calcsize(FLOAT_FORMAT))
+            if len(packed) < struct.calcsize(FLOAT_FORMAT):
+                raise ValueError("unexpected end of stream")
+            (distance,) = struct.unpack(FLOAT_FORMAT, packed)
+        return event.instantiate(distance, thread_id=thread_id)
     elif event.event_type == EventType.LEN:
         var_id = read_len_int(stream, 1)
         length = read_len_int(stream, 1)
