@@ -26,6 +26,11 @@ class EventType(enum.Enum):
     TEST_DEF = 15
     TEST_USE = 16
     TEST_ASSERT = 17
+    # Companion to CONDITION carrying the branch distance of a comparison.
+    # Deliberately absent from events() below: it is additive telemetry that no
+    # spectra or predicate analysis subscribes to, so including it would change
+    # what existing analyses collect.
+    CONDITION_VALUE = 18
 
     @classmethod
     def events(cls) -> List["EventType"]:
